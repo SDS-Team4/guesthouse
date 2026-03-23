@@ -7,13 +7,22 @@ ehthumbs.db
 Desktop.ini
 
 ############################
-# Editor / IDE
+# VSCode
 ############################
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+############################
+# IntelliJ / JetBrains
+############################
 .idea/
 *.iml
 *.ipr
 *.iws
+out/
 
 ############################
 # Logs
@@ -37,14 +46,13 @@ pnpm-debug.log*
 ############################
 target/
 build/
-out/
 bin/
 *.class
 *.jar
 *.war
 *.ear
 
-# Spring Boot local config
+# Spring local config (절대 커밋 금지)
 application-local.yml
 application-local.yaml
 application-secret.yml
@@ -74,14 +82,6 @@ out/
 .cache/
 .parcel-cache/
 coverage/
-
-############################
-# Package manager files to ignore
-# (lock files are usually committed, so do NOT ignore them)
-############################
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
 
 ############################
 # TypeScript
@@ -123,29 +123,24 @@ test-output/
 *.mv.db
 
 ############################
-# Redis / local dump
+# Redis
 ############################
 dump.rdb
 appendonly.aof
 
 ############################
-# Uploaded / generated files
+# Generated / Uploads
 ############################
 uploads/
 generated/
 public/generated/
 
 ############################
-# Data files
-# 주의: 샘플 데이터는 별도 sample 폴더로 관리 추천
+# Data (선택)
 ############################
 data/
 *.csv
 *.tsv
-
-# JSON은 전부 무시하면 설정/샘플도 날아갈 수 있어서
-# 생성 데이터만 무시하는 식으로 필요시 조정 추천
-# *.json
 
 ############################
 # AWS / credentials
@@ -155,7 +150,7 @@ data/
 *.key
 
 ############################
-# Docker / local overrides
+# Docker
 ############################
 docker-compose.override.yml
 
