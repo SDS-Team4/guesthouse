@@ -1,0 +1,45 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.java]
+indent_size = 4
+
+[*.sql]
+indent_size = 4
+
+[*.yml]
+indent_size = 2
+
+[*.yaml]
+indent_size = 2
+
+[*.json]
+indent_size = 2
+
+[*.env]
+indent_size = 2
+
+[*.properties]
+indent_size = 2
+
+[*.ts]
+indent_size = 2
+
+[*.tsx]
+indent_size = 2
+
+[*.js]
+indent_size = 2
+
+[*.jsx]
+indent_size = 2
