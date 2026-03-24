@@ -1,0 +1,19 @@
+# Guesthouse reservation system - environment baseline requirements
+# 목적: JDK 17 기반에서 버전 충돌 없이 공통 개발 환경을 맞추기 위한 기준
+# 형식: package==version
+
+jdk==17
+spring-boot==3.2.x
+maven==3.9.x
+gradle==8.5+
+mysql==8.0.x
+mysql-connector-j==8.3.x
+mybatis-spring-boot-starter==3.0.x
+nginx==1.24.x
+nodejs==20.x
+npm==10.x
+react==18.x
+
+# recommended settings
+jvm.encoding==UTF-8
+jvm.timezone==Asia/Seoul

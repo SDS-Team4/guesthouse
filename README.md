@@ -1,7 +1,11 @@
 # guesthouse
 게스트하우스
 
-<<<<<<< HEAD
-=======
-test
->>>>>>> cf8c86046cd6713d59860d805add6bea8ffd9c13
+## 문서
+
+- [SRS](SRS.md)
+- [Environment Setup](ENVIRONMENT_SETUP.md)
+- [API Specification](API_SPEC.md)
+- [OpenAPI Spec](openapi.yaml)
+- [Requirements Baseline](requirements.txt)
+
