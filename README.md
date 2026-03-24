@@ -1,4 +1,5 @@
 # guesthouse
+
 게스트하우스
 
 ## 문서
@@ -8,4 +9,3 @@
 - [API Specification](API_SPEC.md)
 - [OpenAPI Spec](openapi.yaml)
 - [Requirements Baseline](requirements.txt)
-

@@ -24,15 +24,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SignUpRequest'
+              $ref: "#/components/schemas/SignUpRequest"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SignUpResponse'
-        '400': { $ref: '#/components/responses/BadRequest' }
+                $ref: "#/components/schemas/SignUpResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
 
   /api/v1/auth/login:
     post:
@@ -43,15 +43,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        '200':
+        "200":
           description: OK (세션 생성)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
-        '401': { $ref: '#/components/responses/Unauthorized' }
+                $ref: "#/components/schemas/LoginResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /api/v1/auth/logout:
     post:
@@ -60,8 +60,8 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+        "200": { $ref: "#/components/responses/OkNoData" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /api/v1/auth/password:
     patch:
@@ -74,11 +74,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ChangePasswordRequest'
+              $ref: "#/components/schemas/ChangePasswordRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+        "200": { $ref: "#/components/responses/OkNoData" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /api/v1/auth/find-id/request:
     post:
@@ -89,9 +89,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FindIdRequest'
+              $ref: "#/components/schemas/FindIdRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/auth/find-id/verify:
     post:
@@ -102,14 +102,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FindIdVerifyRequest'
+              $ref: "#/components/schemas/FindIdVerifyRequest"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FindIdVerifyResponse'
+                $ref: "#/components/schemas/FindIdVerifyResponse"
 
   /api/v1/auth/reset-password/request:
     post:
@@ -120,9 +120,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResetPasswordRequest'
+              $ref: "#/components/schemas/ResetPasswordRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/auth/reset-password/confirm:
     post:
@@ -133,9 +133,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResetPasswordConfirmRequest'
+              $ref: "#/components/schemas/ResetPasswordConfirmRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/guest/accommodations:
     get:
@@ -170,36 +170,36 @@ paths:
           schema: { type: integer, default: 20, minimum: 1 }
         - in: query
           name: sort
-          schema: { type: string, example: basePrice,asc }
+          schema: { type: string, example: basePrice, asc }
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccommodationSearchResponse'
+                $ref: "#/components/schemas/AccommodationSearchResponse"
 
   /api/v1/guest/accommodations/{accommodationId}:
     get:
       tags: [Guest]
       summary: 숙소 상세 조회
       parameters:
-        - $ref: '#/components/parameters/AccommodationId'
+        - $ref: "#/components/parameters/AccommodationId"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccommodationDetailResponse'
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/AccommodationDetailResponse"
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/guest/room-types/{roomTypeId}/availability:
     get:
       tags: [Guest]
       summary: 객실 타입 예약 현황 조회
       parameters:
-        - $ref: '#/components/parameters/RoomTypeId'
+        - $ref: "#/components/parameters/RoomTypeId"
         - in: query
           name: from
           required: true
@@ -209,12 +209,12 @@ paths:
           required: true
           schema: { type: string, format: date }
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoomTypeAvailabilityResponse'
+                $ref: "#/components/schemas/RoomTypeAvailabilityResponse"
 
   /api/v1/guest/reservations:
     post:
@@ -227,15 +227,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateReservationRequest'
+              $ref: "#/components/schemas/CreateReservationRequest"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateReservationResponse'
-        '409': { $ref: '#/components/responses/Conflict' }
+                $ref: "#/components/schemas/CreateReservationResponse"
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/guest/reservations/me:
     get:
@@ -247,14 +247,14 @@ paths:
         - in: query
           name: status
           schema:
-            $ref: '#/components/schemas/ReservationStatus'
+            $ref: "#/components/schemas/ReservationStatus"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MyReservationsResponse'
+                $ref: "#/components/schemas/MyReservationsResponse"
 
   /api/v1/guest/reservations/{reservationId}:
     get:
@@ -263,15 +263,15 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/ReservationId'
+        - $ref: "#/components/parameters/ReservationId"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReservationDetailResponse'
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/ReservationDetailResponse"
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/guest/reservations/{reservationId}/cancel:
     patch:
@@ -280,10 +280,10 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/ReservationId'
+        - $ref: "#/components/parameters/ReservationId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        "200": { $ref: "#/components/responses/OkNoData" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/host/accommodations:
     get:
@@ -292,12 +292,12 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HostAccommodationsResponse'
+                $ref: "#/components/schemas/HostAccommodationsResponse"
     post:
       tags: [Host]
       summary: 숙소 등록
@@ -308,14 +308,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAccommodationRequest'
+              $ref: "#/components/schemas/CreateAccommodationRequest"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateAccommodationResponse'
+                $ref: "#/components/schemas/CreateAccommodationResponse"
 
   /api/v1/host/accommodations/{accommodationId}:
     patch:
@@ -324,15 +324,15 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/AccommodationId'
+        - $ref: "#/components/parameters/AccommodationId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateAccommodationRequest'
+              $ref: "#/components/schemas/UpdateAccommodationRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/accommodations/{accommodationId}/deactivate:
     patch:
@@ -341,9 +341,9 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/AccommodationId'
+        - $ref: "#/components/parameters/AccommodationId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/room-types:
     post:
@@ -356,9 +356,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateRoomTypeRequest'
+              $ref: "#/components/schemas/CreateRoomTypeRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     get:
       tags: [Host]
       summary: 객실 타입 목록 조회
@@ -370,7 +370,7 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/room-types/{roomTypeId}:
     patch:
@@ -379,24 +379,24 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/RoomTypeId'
+        - $ref: "#/components/parameters/RoomTypeId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateRoomTypeRequest'
+              $ref: "#/components/schemas/UpdateRoomTypeRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     delete:
       tags: [Host]
       summary: 객실 타입 삭제/비활성화
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/RoomTypeId'
+        - $ref: "#/components/parameters/RoomTypeId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/rooms:
     post:
@@ -409,9 +409,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateRoomRequest'
+              $ref: "#/components/schemas/CreateRoomRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     get:
       tags: [Host]
       summary: 개별 객실 목록 조회
@@ -423,7 +423,7 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/rooms/{roomId}:
     patch:
@@ -432,24 +432,24 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/RoomId'
+        - $ref: "#/components/parameters/RoomId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateRoomRequest'
+              $ref: "#/components/schemas/UpdateRoomRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     delete:
       tags: [Host]
       summary: 개별 객실 삭제/비활성화
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/RoomId'
+        - $ref: "#/components/parameters/RoomId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/price-policies:
     post:
@@ -462,9 +462,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePricePolicyRequest'
+              $ref: "#/components/schemas/CreatePricePolicyRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     get:
       tags: [Host]
       summary: 가격 정책 목록 조회
@@ -476,7 +476,7 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/price-policies/{policyId}:
     patch:
@@ -485,24 +485,24 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/PolicyId'
+        - $ref: "#/components/parameters/PolicyId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdatePricePolicyRequest'
+              $ref: "#/components/schemas/UpdatePricePolicyRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     delete:
       tags: [Host]
       summary: 가격 정책 삭제
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/PolicyId'
+        - $ref: "#/components/parameters/PolicyId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/blocks:
     post:
@@ -515,9 +515,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateBlockRequest'
+              $ref: "#/components/schemas/CreateBlockRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     get:
       tags: [Host]
       summary: Block 조회
@@ -529,7 +529,7 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/blocks/{blockId}:
     patch:
@@ -538,24 +538,24 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/BlockId'
+        - $ref: "#/components/parameters/BlockId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateBlockRequest'
+              $ref: "#/components/schemas/UpdateBlockRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     delete:
       tags: [Host]
       summary: Block 해제(비활성화)
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/BlockId'
+        - $ref: "#/components/parameters/BlockId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/reservations:
     get:
@@ -569,7 +569,7 @@ paths:
           required: true
           schema: { type: integer, format: int64 }
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/host/reservations/{reservationId}/approve:
     patch:
@@ -578,10 +578,10 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/ReservationId'
+        - $ref: "#/components/parameters/ReservationId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        "200": { $ref: "#/components/responses/OkNoData" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/host/reservations/{reservationId}/cancel:
     patch:
@@ -590,10 +590,10 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/ReservationId'
+        - $ref: "#/components/parameters/ReservationId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        "200": { $ref: "#/components/responses/OkNoData" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/host/reservations/{reservationId}/nights/{stayDate}/room:
     patch:
@@ -602,7 +602,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/ReservationId'
+        - $ref: "#/components/parameters/ReservationId"
         - in: path
           name: stayDate
           required: true
@@ -619,7 +619,7 @@ paths:
                   type: integer
                   format: int64
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/users:
     get:
@@ -628,7 +628,7 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/users/{userId}:
     get:
@@ -637,24 +637,24 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     patch:
       tags: [Admin]
       summary: 회원 정보 수정
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdminUpdateUserRequest'
+              $ref: "#/components/schemas/AdminUpdateUserRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/auth-requests:
     get:
@@ -666,9 +666,9 @@ paths:
         - in: query
           name: status
           schema:
-            $ref: '#/components/schemas/AuthRequestStatus'
+            $ref: "#/components/schemas/AuthRequestStatus"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/auth-requests/{requestId}:
     patch:
@@ -677,15 +677,15 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/RequestId'
+        - $ref: "#/components/parameters/RequestId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdminHandleAuthRequest'
+              $ref: "#/components/schemas/AdminHandleAuthRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/audit-logs:
     get:
@@ -694,7 +694,7 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/system-logs:
     get:
@@ -703,7 +703,7 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/terms:
     get:
@@ -712,7 +712,7 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     post:
       tags: [Admin]
       summary: 약관 등록
@@ -723,9 +723,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateTermRequest'
+              $ref: "#/components/schemas/CreateTermRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/terms/{termsId}:
     patch:
@@ -743,9 +743,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateTermRequest'
+              $ref: "#/components/schemas/UpdateTermRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/notifications:
     get:
@@ -754,7 +754,7 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     post:
       tags: [Admin]
       summary: 공지 등록
@@ -765,9 +765,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateNotificationRequest'
+              $ref: "#/components/schemas/CreateNotificationRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/notifications/{noticeId}:
     patch:
@@ -776,24 +776,24 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/NoticeId'
+        - $ref: "#/components/parameters/NoticeId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateNotificationRequest'
+              $ref: "#/components/schemas/UpdateNotificationRequest"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
     delete:
       tags: [Admin]
       summary: 공지 삭제
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/NoticeId'
+        - $ref: "#/components/parameters/NoticeId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/notifications/{noticeId}/attachments:
     post:
@@ -802,7 +802,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/NoticeId'
+        - $ref: "#/components/parameters/NoticeId"
       requestBody:
         required: true
         content:
@@ -815,7 +815,7 @@ paths:
                   type: string
                   format: binary
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/notifications/{noticeId}/attachments/{attachmentId}:
     delete:
@@ -824,10 +824,10 @@ paths:
       security:
         - cookieAuth: []
       parameters:
-        - $ref: '#/components/parameters/NoticeId'
-        - $ref: '#/components/parameters/AttachmentId'
+        - $ref: "#/components/parameters/NoticeId"
+        - $ref: "#/components/parameters/AttachmentId"
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/admin/operations/summary:
     get:
@@ -836,7 +836,7 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200': { $ref: '#/components/responses/OkNoData' }
+        "200": { $ref: "#/components/responses/OkNoData" }
 
 components:
   securitySchemes:
@@ -903,31 +903,31 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/SuccessEnvelope'
+            $ref: "#/components/schemas/SuccessEnvelope"
     BadRequest:
       description: Bad Request
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+            $ref: "#/components/schemas/ErrorEnvelope"
     Unauthorized:
       description: Unauthorized
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+            $ref: "#/components/schemas/ErrorEnvelope"
     NotFound:
       description: Not Found
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+            $ref: "#/components/schemas/ErrorEnvelope"
     Conflict:
       description: Conflict
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+            $ref: "#/components/schemas/ErrorEnvelope"
 
   schemas:
     SuccessEnvelope:
@@ -992,15 +992,15 @@ components:
 
     SignUpResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
               type: object
               properties:
                 userId: { type: integer, format: int64 }
-                roles: { $ref: '#/components/schemas/UserRole' }
-                status: { $ref: '#/components/schemas/UserStatus' }
+                roles: { $ref: "#/components/schemas/UserRole" }
+                status: { $ref: "#/components/schemas/UserStatus" }
 
     LoginRequest:
       type: object
@@ -1011,14 +1011,14 @@ components:
 
     LoginResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
               type: object
               properties:
                 userId: { type: integer, format: int64 }
-                roles: { $ref: '#/components/schemas/UserRole' }
+                roles: { $ref: "#/components/schemas/UserRole" }
 
     ChangePasswordRequest:
       type: object
@@ -1044,7 +1044,7 @@ components:
 
     FindIdVerifyResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1079,7 +1079,7 @@ components:
 
     AccommodationSearchResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1091,11 +1091,11 @@ components:
                 items:
                   type: array
                   items:
-                    $ref: '#/components/schemas/AccommodationSummary'
+                    $ref: "#/components/schemas/AccommodationSummary"
 
     AccommodationDetailResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1106,13 +1106,13 @@ components:
                 address: { type: string }
                 region: { type: string }
                 infoText: { type: string }
-                checkInTime: { type: string, example: '15:00:00' }
-                checkOutTime: { type: string, example: '11:00:00' }
-                status: { $ref: '#/components/schemas/AccommodationStatus' }
+                checkInTime: { type: string, example: "15:00:00" }
+                checkOutTime: { type: string, example: "11:00:00" }
+                status: { $ref: "#/components/schemas/AccommodationStatus" }
 
     RoomTypeAvailabilityResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1141,7 +1141,7 @@ components:
 
     CreateReservationResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1149,12 +1149,12 @@ components:
               properties:
                 reservationId: { type: integer, format: int64 }
                 reservationNo: { type: string }
-                status: { $ref: '#/components/schemas/ReservationStatus' }
+                status: { $ref: "#/components/schemas/ReservationStatus" }
                 requestedTime: { type: string, format: date-time }
 
     MyReservationsResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1168,11 +1168,11 @@ components:
                   roomTypeName: { type: string }
                   checkInDate: { type: string, format: date }
                   checkOutDate: { type: string, format: date }
-                  status: { $ref: '#/components/schemas/ReservationStatus' }
+                  status: { $ref: "#/components/schemas/ReservationStatus" }
 
     ReservationDetailResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1186,7 +1186,7 @@ components:
                 roomId: { type: integer, format: int64, nullable: true }
                 checkInDate: { type: string, format: date }
                 checkOutDate: { type: string, format: date }
-                status: { $ref: '#/components/schemas/ReservationStatus' }
+                status: { $ref: "#/components/schemas/ReservationStatus" }
                 requestedTime: { type: string, format: date-time }
 
     CreateAccommodationRequest:
@@ -1197,12 +1197,12 @@ components:
         address: { type: string, minLength: 1, maxLength: 255 }
         region: { type: string, minLength: 1, maxLength: 50 }
         infoText: { type: string }
-        checkInTime: { type: string, example: '15:00:00' }
-        checkOutTime: { type: string, example: '11:00:00' }
+        checkInTime: { type: string, example: "15:00:00" }
+        checkOutTime: { type: string, example: "11:00:00" }
 
     CreateAccommodationResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1210,7 +1210,7 @@ components:
               properties:
                 accommodationId: { type: integer, format: int64 }
                 hostId: { type: integer, format: int64 }
-                status: { $ref: '#/components/schemas/AccommodationStatus' }
+                status: { $ref: "#/components/schemas/AccommodationStatus" }
 
     UpdateAccommodationRequest:
       type: object
@@ -1221,7 +1221,7 @@ components:
         infoText: { type: string }
         checkInTime: { type: string }
         checkOutTime: { type: string }
-        status: { $ref: '#/components/schemas/AccommodationStatus' }
+        status: { $ref: "#/components/schemas/AccommodationStatus" }
 
     CreateRoomTypeRequest:
       type: object
@@ -1240,7 +1240,7 @@ components:
         maxCapacity: { type: integer, minimum: 1 }
         basePrice: { type: integer, minimum: 0 }
         infoText: { type: string }
-        status: { $ref: '#/components/schemas/AccommodationStatus' }
+        status: { $ref: "#/components/schemas/AccommodationStatus" }
 
     CreateRoomRequest:
       type: object
@@ -1249,18 +1249,27 @@ components:
         roomTypeId: { type: integer, format: int64 }
         accommodationId: { type: integer, format: int64 }
         roomCode: { type: string, minLength: 1, maxLength: 20 }
-        status: { $ref: '#/components/schemas/RoomStatus' }
+        status: { $ref: "#/components/schemas/RoomStatus" }
         memo: { type: string }
 
     UpdateRoomRequest:
       type: object
       properties:
-        status: { $ref: '#/components/schemas/RoomStatus' }
+        status: { $ref: "#/components/schemas/RoomStatus" }
         memo: { type: string }
 
     CreatePricePolicyRequest:
       type: object
-      required: [accommodationId, roomTypeId, policyName, startDate, endDate, priceValue, priceType]
+      required:
+        [
+          accommodationId,
+          roomTypeId,
+          policyName,
+          startDate,
+          endDate,
+          priceValue,
+          priceType,
+        ]
       properties:
         accommodationId: { type: integer, format: int64 }
         roomTypeId: { type: integer, format: int64 }
@@ -1268,7 +1277,7 @@ components:
         startDate: { type: string, format: date }
         endDate: { type: string, format: date }
         priceValue: { type: number, format: double, minimum: 0 }
-        priceType: { $ref: '#/components/schemas/PriceType' }
+        priceType: { $ref: "#/components/schemas/PriceType" }
         dayOfWeekMask: { type: integer, minimum: 0 }
 
     UpdatePricePolicyRequest:
@@ -1278,8 +1287,8 @@ components:
         startDate: { type: string, format: date }
         endDate: { type: string, format: date }
         priceValue: { type: number, format: double, minimum: 0 }
-        priceType: { $ref: '#/components/schemas/PriceType' }
-        status: { $ref: '#/components/schemas/AccommodationStatus' }
+        priceType: { $ref: "#/components/schemas/PriceType" }
+        status: { $ref: "#/components/schemas/AccommodationStatus" }
         dayOfWeekMask: { type: integer, minimum: 0 }
 
     CreateBlockRequest:
@@ -1299,7 +1308,7 @@ components:
         startDate: { type: string, format: date }
         endDate: { type: string, format: date }
         reasonType: { type: string, maxLength: 50 }
-        status: { $ref: '#/components/schemas/AccommodationStatus' }
+        status: { $ref: "#/components/schemas/AccommodationStatus" }
 
     AdminUpdateUserRequest:
       type: object
@@ -1307,8 +1316,8 @@ components:
         name: { type: string, minLength: 1, maxLength: 50 }
         email: { type: string, format: email }
         phone: { type: string }
-        status: { $ref: '#/components/schemas/UserStatus' }
-        roles: { $ref: '#/components/schemas/UserRole' }
+        status: { $ref: "#/components/schemas/UserStatus" }
+        roles: { $ref: "#/components/schemas/UserRole" }
 
     AdminHandleAuthRequest:
       type: object
@@ -1326,7 +1335,7 @@ components:
         content: { type: string }
         version: { type: string, maxLength: 50 }
         isRequired: { type: boolean }
-        status: { $ref: '#/components/schemas/PublishStatus' }
+        status: { $ref: "#/components/schemas/PublishStatus" }
         effectiveDate: { type: string, format: date-time }
 
     UpdateTermRequest:
@@ -1336,7 +1345,7 @@ components:
         content: { type: string }
         version: { type: string, maxLength: 50 }
         isRequired: { type: boolean }
-        status: { $ref: '#/components/schemas/PublishStatus' }
+        status: { $ref: "#/components/schemas/PublishStatus" }
         effectiveDate: { type: string, format: date-time }
 
     CreateNotificationRequest:
@@ -1345,7 +1354,7 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 100 }
         content: { type: string }
-        status: { $ref: '#/components/schemas/PublishStatus' }
+        status: { $ref: "#/components/schemas/PublishStatus" }
         isPinned: { type: boolean, default: false }
 
     UpdateNotificationRequest:
@@ -1353,12 +1362,12 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 100 }
         content: { type: string }
-        status: { $ref: '#/components/schemas/PublishStatus' }
+        status: { $ref: "#/components/schemas/PublishStatus" }
         isPinned: { type: boolean }
 
     HostAccommodationsResponse:
       allOf:
-        - $ref: '#/components/schemas/SuccessEnvelope'
+        - $ref: "#/components/schemas/SuccessEnvelope"
         - type: object
           properties:
             data:
@@ -1369,4 +1378,4 @@ components:
                   accommodationId: { type: integer, format: int64 }
                   name: { type: string }
                   region: { type: string }
-                  status: { $ref: '#/components/schemas/AccommodationStatus' }
+                  status: { $ref: "#/components/schemas/AccommodationStatus" }

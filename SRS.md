@@ -27,13 +27,13 @@
 
 ## 1.3 Intended Audience
 
-| 대상       | 주요 참고 내용                |
-| ---------- | ----------------------------- |
-| 백엔드     | API 계약, DB 모델, 트랜잭션   |
-| 프론트엔드 | UI 흐름, 입력/출력 규칙       |
-| QA         | 기능/비기능 테스트 기준       |
-| 관리자     | 운영 정책, 권한/로그 관리     |
-| 사용자     | 서비스 이해, 사용 시나리오    |
+| 대상       | 주요 참고 내용              |
+| ---------- | --------------------------- |
+| 백엔드     | API 계약, DB 모델, 트랜잭션 |
+| 프론트엔드 | UI 흐름, 입력/출력 규칙     |
+| QA         | 기능/비기능 테스트 기준     |
+| 관리자     | 운영 정책, 권한/로그 관리   |
+| 사용자     | 서비스 이해, 사용 시나리오  |
 
 ## 1.4 Product Scope
 
@@ -81,11 +81,11 @@
 
 ## 2.3 User Roles
 
-| 역할  | 설명                                |
-| ----- | ----------------------------------- |
-| Guest | 예약 사용자                         |
+| 역할  | 설명                                  |
+| ----- | ------------------------------------- |
+| Guest | 예약 사용자                           |
 | Host  | 본인 숙소/객실/예약을 운영하는 사용자 |
-| Admin | 전체 시스템 운영 및 감사 담당자      |
+| Admin | 전체 시스템 운영 및 감사 담당자       |
 
 ## 2.4 Operating Environment
 
@@ -257,21 +257,21 @@
 
 ## 7.1 Reservation Status
 
-| 상태      | 설명                              |
-| --------- | --------------------------------- |
-| PENDING   | 예약 요청 완료, 재고 점유 상태     |
-| APPROVED  | 호스트 확정 완료                  |
-| CANCELLED | 게스트 또는 호스트에 의해 취소됨   |
+| 상태      | 설명                             |
+| --------- | -------------------------------- |
+| PENDING   | 예약 요청 완료, 재고 점유 상태   |
+| APPROVED  | 호스트 확정 완료                 |
+| CANCELLED | 게스트 또는 호스트에 의해 취소됨 |
 
 ## 7.2 State Transition Rules
 
-| 현재 상태 | 이벤트             | 다음 상태  | 수행 주체        | 비고 |
-| --------- | ------------------ | ---------- | ---------------- | ---- |
-| PENDING   | 호스트 예약 확정   | APPROVED   | Host             | 정상 전이 |
-| PENDING   | 게스트 예약 취소   | CANCELLED  | Guest            | 취소 가능 정책 충족 시 |
-| PENDING   | 호스트 예약 취소   | CANCELLED  | Host             | 사유 기록 필수 |
-| APPROVED  | 호스트 예약 취소   | CANCELLED  | Host             | 사유 기록 필수 |
-| CANCELLED | 상태 변경 요청     | 불가       | 시스템           | 종료 상태 |
+| 현재 상태 | 이벤트           | 다음 상태 | 수행 주체 | 비고                   |
+| --------- | ---------------- | --------- | --------- | ---------------------- |
+| PENDING   | 호스트 예약 확정 | APPROVED  | Host      | 정상 전이              |
+| PENDING   | 게스트 예약 취소 | CANCELLED | Guest     | 취소 가능 정책 충족 시 |
+| PENDING   | 호스트 예약 취소 | CANCELLED | Host      | 사유 기록 필수         |
+| APPROVED  | 호스트 예약 취소 | CANCELLED | Host      | 사유 기록 필수         |
+| CANCELLED | 상태 변경 요청   | 불가      | 시스템    | 종료 상태              |
 
 ## 7.3 Invalid Transition Policy
 
@@ -297,9 +297,9 @@
 
 ```json
 {
-	"success": true,
-	"data": {},
-	"timestamp": "2026-03-24T09:00:00Z"
+  "success": true,
+  "data": {},
+  "timestamp": "2026-03-24T09:00:00Z"
 }
 ```
 
@@ -307,11 +307,11 @@
 
 ```json
 {
-	"success": false,
-	"errorCode": "RESERVATION_OUT_OF_STOCK",
-	"message": "재고가 부족하여 예약 요청에 실패했습니다.",
-	"timestamp": "2026-03-24T09:00:00Z",
-	"traceId": "c7c1f2..."
+  "success": false,
+  "errorCode": "RESERVATION_OUT_OF_STOCK",
+  "message": "재고가 부족하여 예약 요청에 실패했습니다.",
+  "timestamp": "2026-03-24T09:00:00Z",
+  "traceId": "c7c1f2..."
 }
 ```
 
@@ -347,12 +347,12 @@
 - 모든 테이블 PK 필수 (`BIGINT` 또는 UUID)
 - 참조 무결성 FK 필수
 - 예약 핵심 인덱스:
-	- `reservations(guest_id, created_at)`
-	- `reservations(accommodation_id, status, check_in, check_out)`
-	- `reservation_nights(room_type_id, stay_date)`
-	- `blocks(room_id, start_date, end_date)`
-	- `auth_request(user_id, status, requested_at)`
-	- `notification(status, created_at)`
+  - `reservations(guest_id, created_at)`
+  - `reservations(accommodation_id, status, check_in, check_out)`
+  - `reservation_nights(room_type_id, stay_date)`
+  - `blocks(room_id, start_date, end_date)`
+  - `auth_request(user_id, status, requested_at)`
+  - `notification(status, created_at)`
 - Soft Delete 컬럼(`is_active`, `deleted_at`) 정책 사용
 
 ## 9.3 데이터 정합성 규칙
@@ -403,18 +403,18 @@
 
 # 11. Error Code Standard (초안)
 
-| 코드                         | HTTP | 설명 |
-| ---------------------------- | ---- | ---- |
-| `AUTH_INVALID_CREDENTIALS`   | 401  | 로그인 정보 불일치 |
-| `AUTH_SESSION_EXPIRED`       | 401  | 세션 만료 |
-| `AUTH_FORBIDDEN`             | 403  | 권한 없음 |
-| `RESOURCE_NOT_FOUND`         | 404  | 조회 대상 없음 |
-| `VALIDATION_FAILED`          | 400  | 입력값 검증 실패 |
-| `RESERVATION_OUT_OF_STOCK`   | 409  | 재고 부족 |
-| `RESERVATION_CONFLICT`       | 409  | 동시성 충돌 |
-| `STATE_TRANSITION_INVALID`   | 409  | 허용되지 않은 상태 변경 |
-| `RATE_LIMIT_EXCEEDED`        | 429  | 요청 한도 초과 |
-| `INTERNAL_SERVER_ERROR`      | 500  | 서버 내부 오류 |
+| 코드                       | HTTP | 설명                    |
+| -------------------------- | ---- | ----------------------- |
+| `AUTH_INVALID_CREDENTIALS` | 401  | 로그인 정보 불일치      |
+| `AUTH_SESSION_EXPIRED`     | 401  | 세션 만료               |
+| `AUTH_FORBIDDEN`           | 403  | 권한 없음               |
+| `RESOURCE_NOT_FOUND`       | 404  | 조회 대상 없음          |
+| `VALIDATION_FAILED`        | 400  | 입력값 검증 실패        |
+| `RESERVATION_OUT_OF_STOCK` | 409  | 재고 부족               |
+| `RESERVATION_CONFLICT`     | 409  | 동시성 충돌             |
+| `STATE_TRANSITION_INVALID` | 409  | 허용되지 않은 상태 변경 |
+| `RATE_LIMIT_EXCEEDED`      | 429  | 요청 한도 초과          |
+| `INTERNAL_SERVER_ERROR`    | 500  | 서버 내부 오류          |
 
 ---
 
