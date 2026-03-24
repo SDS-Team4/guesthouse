@@ -98,9 +98,11 @@
 ## 2.5 Constraints
 
 - 서버 분리 필수(게스트 vs 운영)
+- 게스트 Web/API와 호스트·관리자 Web/API는 물리적 또는 논리적으로 분리된 별도 실행 환경으로 운영
 - 예약 접수 단위: 객실 타입
 - 비밀번호 저장: Bcrypt 필수
 - 인증 방식: 세션 기반, JWT 미사용
+- 백엔드 구현 기본 정책: Lombok 미사용
 - 주요 삭제 정책: 예약 이력 존재 시 비활성화 우선
 
 ## 2.6 Assumptions & Dependencies
@@ -134,7 +136,8 @@
 
 - 회원가입, 로그인/로그아웃, 개인정보 조회/수정
 - 로그인 상태 비밀번호 변경
-- 아이디 찾기, 비밀번호 찾기/재설정
+- 아이디 찾기 지원
+- 비밀번호 찾기/재설정 범위는 `TBD-001` 확정 전까지 보류
 - 참조 요구사항: `REQ-F-001` ~ `REQ-F-035`
 
 ## 4.2 숙소 탐색
@@ -317,7 +320,7 @@
 
 ## 8.3 핵심 API 그룹(요약)
 
-- 인증: 회원가입/로그인/로그아웃/비밀번호 변경/아이디·비밀번호 찾기
+- 인증: 회원가입/로그인/로그아웃/비밀번호 변경/아이디 찾기
 - 게스트: 숙소 검색/상세/예약요청/예약조회/예약취소
 - 호스트: 숙소/타입/객실/가격/Block CRUD, 예약 확정·취소·배정변경
 - 관리자: 회원/권한/로그/공지/약관/운영현황
@@ -347,13 +350,14 @@
 - 모든 테이블 PK 필수 (`BIGINT` 또는 UUID)
 - 참조 무결성 FK 필수
 - 예약 핵심 인덱스:
-  - `reservations(guest_id, created_at)`
+  - `reservations(user_id, requested_time)`
   - `reservations(accommodation_id, status, check_in, check_out)`
   - `reservation_nights(room_type_id, stay_date)`
   - `blocks(room_id, start_date, end_date)`
   - `auth_request(user_id, status, requested_at)`
   - `notification(status, created_at)`
-- Soft Delete 컬럼(`is_active`, `deleted_at`) 정책 사용
+- 예약 이력 존재 자산은 하드 삭제보다 `status` 기반 비활성화를 우선 적용
+- `deleted_at`은 감사 또는 운영상 필요한 테이블에 한해 선택적으로 사용
 
 ## 9.3 데이터 정합성 규칙
 
@@ -398,6 +402,7 @@
 
 - 필수 필드: actor, action, target, before/after, reason, ip, userAgent, timestamp
 - 보존 기간: 최소 1년
+- 호스트 예약 취소, 객실 배정 변경, Block 변경, 가격 정책 변경은 사유 또는 운영 메모를 남길 수 있어야 함
 
 ---
 
@@ -420,11 +425,12 @@
 
 # 12. Open Items (TBD)
 
-- `TBD-001`: 결제(PG) 연동 범위 및 시점
+- `TBD-001`: 비밀번호 찾기/재설정 기능 포함 여부
 - `TBD-002`: 관리자 접근 IP 제한 적용 여부
 - `TBD-003`: 예약 대기(PENDING) 만료 시간 정책
 - `TBD-004`: 이미지 업로드/저장소 방식
 - `TBD-005`: 관리자 서버 분리 수준(논리/물리/배포)
+- `TBD-006`: 결제(PG) 연동 범위 및 시점
 
 ---
 

@@ -47,8 +47,8 @@
 | 비밀번호 변경      | PATCH  | `/api/v1/auth/password`               | 로그인 상태 변경             |
 | 아이디 찾기 시작   | POST   | `/api/v1/auth/find-id/request`        | 인증코드 발송                |
 | 아이디 찾기 검증   | POST   | `/api/v1/auth/find-id/verify`         | 인증코드 검증 후 아이디 표시 |
-| 비밀번호 찾기 시작 | POST   | `/api/v1/auth/reset-password/request` | 본인확인 요청                |
-| 비밀번호 재설정    | POST   | `/api/v1/auth/reset-password/confirm` | 새 비밀번호 저장             |
+
+`/api/v1/auth/reset-password/*` 계열은 원본 SRS의 `TBD-001` 확정 이후 추가합니다.
 
 ## 5) Guest APIs
 
@@ -138,7 +138,7 @@
 ## 10) Notes
 
 - 본 문서는 ERD 정합 기준 API 계약 문서이다.
-- Guest/Host/Admin API는 도메인 또는 prefix 레벨에서 분리 배포 가능하다.
+- Guest API와 Host/Admin API는 원본 SRS 기준으로 물리적 또는 논리적으로 분리된 실행 환경 배포를 기본으로 한다.
 - ERD 정합을 위해 본 문서는 `accommodations`, `blocks`, `auth-requests`, `notifications`, `attachments` 명명 규칙을 기준으로 한다.
 
 ## 11) ERD Field Dictionary (API 노출 기준)
@@ -424,7 +424,25 @@
 | `status` | string | reservations.status (`APPROVED`) |
 | `updatedAt` | datetime | 감사 로그/수정 시각 |
 
-### 12.8 Admin - 권한 요청 처리
+### 12.8 Host - 예약 취소
+
+- Endpoint: `PATCH /api/v1/host/reservations/{reservationId}/cancel`
+
+**Request**
+| Field | Type | Required | Validation |
+| --- | --- | --- | --- |
+| `reason` | string | Y | 1~500 |
+| `restoreInventory` | boolean | N | 기본 정책 또는 운영 판단 |
+
+**Response.data**
+| Field | Type | Source(ERD) |
+| --- | --- | --- |
+| `reservationId` | number | reservations.reservation_id |
+| `status` | string | reservations.status (`CANCELLED`) |
+| `reason` | string | audit log reason |
+| `updatedAt` | datetime | 감사 로그/수정 시각 |
+
+### 12.9 Admin - 권한 요청 처리
 
 - Endpoint: `PATCH /api/v1/admin/auth-requests/{requestId}`
 
@@ -441,7 +459,7 @@
 | `userId` | number | auth_request.user_id |
 | `status` | string | auth_request.status |
 
-### 12.9 Admin - 공지 등록
+### 12.10 Admin - 공지 등록
 
 - Endpoint: `POST /api/v1/admin/notifications`
 
@@ -460,7 +478,7 @@
 | `status` | string | notification.status |
 | `createdAt` | datetime | notification.created_at |
 
-### 12.10 Admin - 첨부 업로드
+### 12.11 Admin - 첨부 업로드
 
 - Endpoint: `POST /api/v1/admin/notifications/{noticeId}/attachments`
 - Content-Type: `multipart/form-data`
@@ -488,3 +506,4 @@
 - 관리자 API는 `roles=ADMIN`만 허용한다.
 - 모든 상태 전이는 8장 전이표를 준수하며 위반 시 `STATE_TRANSITION_INVALID(409)`를 반환한다.
 - 예약 생성 시 재고 검증/락/예약 생성/숙박일 생성은 단일 트랜잭션으로 수행한다.
+- 호스트 예약 취소 요청은 감사 추적을 위해 `reason`을 포함해야 한다.

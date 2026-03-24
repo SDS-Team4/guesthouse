@@ -3,16 +3,16 @@
 # 형식: package==version
 
 jdk==17
-spring-boot==3.2.x
-maven==3.9.x
-gradle==8.5+
-mysql==8.0.x
-mysql-connector-j==8.3.x
-mybatis-spring-boot-starter==3.0.x
-nginx==1.24.x
-nodejs==20.x
-npm==10.x
-react==18.x
+spring-boot==3.2.12
+maven==3.9.9
+gradle==8.10.2
+mysql==8.0.41
+mysql-connector-j==8.3.0
+mybatis-spring-boot-starter==3.0.4
+nginx==1.24.0
+nodejs==20.18.0
+npm==10.8.2
+react==18.3.1
 
 # recommended settings
 jvm.encoding==UTF-8

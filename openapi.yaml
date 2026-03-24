@@ -5,9 +5,12 @@ info:
   description: |
     게스트하우스 예약 시스템 OpenAPI 명세.
     기준 문서: API_SPEC.md, SRS.md, ERD.
+    비밀번호 찾기/재설정 API는 TBD-001 확정 전까지 본 명세에서 제외한다.
 servers:
   - url: https://api.guesthouse.local
-    description: Unified API endpoint (Guest/Host/Admin)
+    description: Example guest API endpoint
+  - url: https://ops-api.guesthouse.local
+    description: Example host/admin API endpoint
 tags:
   - name: Auth
   - name: Guest
@@ -110,32 +113,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FindIdVerifyResponse"
-
-  /api/v1/auth/reset-password/request:
-    post:
-      tags: [Auth]
-      summary: 비밀번호 재설정 인증 요청
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ResetPasswordRequest"
-      responses:
-        "200": { $ref: "#/components/responses/OkNoData" }
-
-  /api/v1/auth/reset-password/confirm:
-    post:
-      tags: [Auth]
-      summary: 비밀번호 재설정 확정
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ResetPasswordConfirmRequest"
-      responses:
-        "200": { $ref: "#/components/responses/OkNoData" }
 
   /api/v1/guest/accommodations:
     get:
@@ -591,6 +568,12 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/ReservationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostCancelReservationRequest"
       responses:
         "200": { $ref: "#/components/responses/OkNoData" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -1052,22 +1035,6 @@ components:
               properties:
                 loginId: { type: string }
 
-    ResetPasswordRequest:
-      type: object
-      required: [loginId]
-      properties:
-        loginId: { type: string }
-        email: { type: string, format: email }
-        phone: { type: string }
-
-    ResetPasswordConfirmRequest:
-      type: object
-      required: [verificationCode, newPassword, newPasswordConfirm]
-      properties:
-        verificationCode: { type: string }
-        newPassword: { type: string, minLength: 10 }
-        newPasswordConfirm: { type: string, minLength: 10 }
-
     AccommodationSummary:
       type: object
       properties:
@@ -1309,6 +1276,13 @@ components:
         endDate: { type: string, format: date }
         reasonType: { type: string, maxLength: 50 }
         status: { $ref: "#/components/schemas/AccommodationStatus" }
+
+    HostCancelReservationRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        restoreInventory: { type: boolean, default: true }
 
     AdminUpdateUserRequest:
       type: object
