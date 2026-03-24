@@ -1,0 +1,43 @@
+# Project-scoped Codex config for the guesthouse reservation system.
+# Copy this into repo-root/.codex/config.toml
+
+profile = "plan-first"
+
+model = "gpt-5.4"
+model_provider = "openai"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+personality = "friendly"
+web_search = "cached"
+model_reasoning_effort = "high"
+plan_mode_reasoning_effort = "xhigh"
+
+project_root_markers = [".git", "AGENTS.md", ".codex"]
+project_doc_fallback_filenames = ["README.agent.md", "AGENT_GUIDE.md"]
+
+[windows]
+sandbox = "elevated"
+
+[features]
+shell_snapshot = true
+
+[profiles.plan-first]
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
+plan_mode_reasoning_effort = "xhigh"
+web_search = "cached"
+
+[profiles.implement]
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+plan_mode_reasoning_effort = "high"
+web_search = "cached"
+
+[profiles.review]
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
+plan_mode_reasoning_effort = "xhigh"
+web_search = "cached"
