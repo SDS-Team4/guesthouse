@@ -51,8 +51,19 @@
 - `shared-audit`
 - `shared-db-conventions`
 
+## Baseline decisions
+- `BD-01`: 예약 동시성은 MySQL 트랜잭션 + 행 단위 비관적 락을 baseline으로 한다.
+- `BD-02`: 아이디 찾기 / 비밀번호 찾기 / 비밀번호 재설정은 `M1` 범위에 포함한다.
+- `BD-03`: V1에서는 관리자용 공지/약관 관리만 baseline scope로 두고, 사용자-facing notification은 후속 범위로 둔다.
+- `BD-04`: 세션 저장소는 Redis-backed key-value store를 baseline으로 하고 JWT는 도입하지 않는다.
+- `BD-05`: `PENDING` 예약은 호스트 승인/거절 전 상태이며, 짧은 TTL hold가 아니라 재고를 계속 점유하는 상태다.
+- `BD-06`: 예약은 room type 기준으로 접수하되, 실제 room assignment는 `reservation_nights`에 nightly row로 저장하고 생성 시 deterministic first-fit으로 초기 배정한다.
+- `BD-07`: 같은 target/date에 pricing policy가 겹치면 winner를 고르지 않고 additive delta를 합산한다.
+- `BD-08`: V1 block 모델은 room-level only이며 `room_id` 기반 exclusion을 baseline으로 한다.
+
 ## Core data model direction
 - `users`
+- `user_term_agreements`
 - `auth_requests`
 - `accommodations`
 - `room_types`
@@ -63,50 +74,87 @@
 - `reservation_nights`
 - `reservation_status_history`
 - `audit_logs`
+- `system_logs` or external logging integration
 - `terms`
 - `notices`
 - `attachments`
-- `recovery_verifications` or equivalent
-- session store (DB or Redis-backed; implementation decision needed)
+- `recovery_verifications`
+- session store in Redis
 
 ---
 
-## 3. Risks
+## 3. Unresolved decisions
+
+## Can defer
+- `OQ-04`: 관리자/호스트 UI/API 차등화 수준 (`M7`)
+- `OQ-05`: 관리자 접근 제한 방식 (`M8`)
+- `OQ-06`: 이미지/파일 저장 방식 (`M5`, `M7`)
+- `OQ-08`: 게스트 취소 cutoff 기준 시각 (`M4`)
+
+---
+
+## 4. Architecture notes
+
+- 예약 가용성 계산은 room type 기준으로 접수하되 실제 점유와 배정은 `reservation_night` + `assigned_room_id` 기준으로 추적한다.
+- `PENDING`와 `CONFIRMED`는 모두 inventory-consuming 상태이며, short-lived hold 테이블은 두지 않는다.
+- host/admin의 승인/거절/재배정 행위는 reservation status history와 audit trail에 함께 남겨야 한다.
+- pricing은 `base_price + sum(applicable deltas)`를 baseline으로 하고, 중복 기간 자체는 허용한다.
+- block은 V1에서 room-level only로 유지하고, room type availability는 room-level block과 occupied night를 합산 제외해 계산한다.
+
+---
+
+## 5. Risks
 
 | ID | Risk | Impact | Response |
 |---|---|---|---|
-| R1 | 예약 동시성 처리 오류 | overbooking | M0에서 트랜잭션 전략 먼저 확정 |
+| R1 | 예약 동시성 처리 오류 | overbooking | `BD-01` 유지, `M3` 동시성 테스트 필수 |
 | R2 | SRS와 SQL 초안 불일치 | 잘못된 스키마 고착 | SRS 우선, schema reconciliation 선행 |
-| R3 | guest/ops 분리 누락 | 보안/배포 복잡도 증가 | 저장소 초기 구조에서 분리 |
+| R3 | guest/ops 분리 누락 | 보안/배포 복잡도 증가 | 저장소 골조 단계에서 분리, 앱 간 강한 결합 금지 |
 | R4 | 권한 검증 누락 | IDOR/권한상승 | 서비스/쿼리 레벨 소유권 검증 강제 |
-| R5 | 감사로그 빈약 | 운영 추적 불가 | 주요 행위 before/after 로그 필수 |
-| R6 | 복구기능 스펙 불명확 | 일정 흔들림 | M0에서 범위 결정 |
+| R5 | 감사로그 빈약 | 운영 추적 불가 | 주요 행위 before/after 또는 충분한 reason 기록 필수 |
+| R6 | SQL 초안 조기 고착 | 구현 전체 재작업 | `SCHEMA_RECONCILIATION.md`를 migration 이전 기준 문서로 사용 |
+| R7 | 장기 `PENDING` 누적 | 판매 가능 재고 장기 잠김 | 운영 backlog 조회, 요청 시각 정렬, host decision SLA 필요 |
+| R8 | additive pricing 오해 | 가격 계산 불일치 | `PERCENT` 미지원 또는 제거, 중첩 delta 합산 테스트 필수 |
 
 ---
 
-## 4. Milestones
+## 6. Milestones
 
-## M0 — 스펙 정렬 / 저장소 골조 / 설계 확정
+## M0 — 스펙 정렬 / baseline 결정 / schema reconciliation
 ### Goal
-구현 전에 모순과 미정 사항을 정리하고 저장소 구조와 기본 설계를 확정한다.
+구현 전에 모순과 미정 사항을 정리하고 baseline decision과 스키마 정합성 기준을 문서로 확정한다.
 
 ### Includes
-- SRS/SQL 차이 분석
-- open questions 확정
-- guest/ops 분리 저장소 골조
-- 스키마 개정 초안
-- 공통 코딩/문서/테스트 규칙 정리
+- can-default-safely 항목을 baseline decision으로 승격
+- 남은 open question의 옵션 / 추천안 / owner milestone 명시
+- `SCHEMA_RECONCILIATION.md` 작성
+- `PLANS.md`, `OPEN_QUESTIONS.md` 정리
+- validation commands와 requirement traceability 보강
+
+### Requirements
+- REQ-F-001 ~ REQ-F-035
+- REQ-F-050 ~ REQ-F-061
+- REQ-F-076 ~ REQ-F-095
+- REQ-F-096 ~ REQ-F-106
+- REQ-F-107 ~ REQ-F-127
+- REQ-NF-003 ~ REQ-NF-007
+- REQ-SEC-001 ~ REQ-SEC-008
+- BR-001 ~ BR-008
+- REQ-OTH-001 ~ REQ-OTH-005
 
 ### Acceptance criteria
-- `OPEN_QUESTIONS.md`에 각 쟁점별 결정 또는 기본안이 있다.
-- `guest-*`와 `ops-*`의 분리 구조가 저장소에 반영된다.
-- DB 초안에서 핵심 불일치 항목이 목록화된다.
-- 인증/예약/감사로그/복구 흐름의 아키텍처 노트가 남아 있다.
+- `OPEN_QUESTIONS.md`에 baseline decision과 remaining decisions가 분리되어 있다.
+- `PLANS.md`에 baseline decision, unresolved decisions, validation commands가 명시돼 있다.
+- `SCHEMA_RECONCILIATION.md`가 SRS 요구사항과 SQL 초안 차이를 milestone 단위로 매핑한다.
+- `BD-05` ~ `BD-08`의 운영/스키마 영향이 문서로 추적 가능하다.
+- production code와 `db/schema-draft.sql`은 수정하지 않는다.
 
-### Validation
-- 문서 검토 완료
-- 저장소 구조 생성 확인
-- 스키마 리뷰 체크리스트 통과
+### Validation commands
+- `Get-Content -Raw -Encoding UTF8 docs/plan/PLANS.md`
+- `Get-Content -Raw -Encoding UTF8 docs/spec/OPEN_QUESTIONS.md`
+- `Get-Content -Raw -Encoding UTF8 docs/plan/SCHEMA_RECONCILIATION.md`
+- `Get-Content -Raw -Encoding UTF8 scripts/schema-review-checklist.md`
+- `git diff -- docs/plan/PLANS.md docs/spec/OPEN_QUESTIONS.md docs/plan/SCHEMA_RECONCILIATION.md`
 
 ---
 
@@ -150,6 +198,10 @@
 ### Goal
 게스트가 조건 기반으로 숙소를 찾고 상세를 본다.
 
+### Depends on
+- `BD-05`: `PENDING`도 점유 상태로 계산해야 한다.
+- `BD-08`: room type availability는 room-level block exclusion을 반영해야 한다.
+
 ### Includes
 - 메인 검색
 - 결과 분류
@@ -160,7 +212,6 @@
 
 ### Requirements
 - REQ-F-036 ~ REQ-F-049
-- REQ-F-094
 - REQ-NF-001
 - REQ-NF-002
 
@@ -181,6 +232,11 @@
 ## M3 — 예약 요청 / 점유 / 초기 배정
 ### Goal
 가장 중요한 예약 원자성과 동시성 제어를 완성한다.
+
+### Depends on
+- `BD-01`: 예약 처리 전체를 단일 트랜잭션 + 비관적 락으로 감싼다.
+- `BD-05`: 성공한 예약은 `PENDING`이어도 재고를 계속 점유한다.
+- `BD-06`: 예약 생성 시 `reservation_night`와 nightly 실제 room assignment가 함께 생성된다.
 
 ### Includes
 - 예약 요청
@@ -204,7 +260,8 @@
 - 검색/상세 조회 시 재고 점유가 일어나지 않는다.
 - 예약 버튼 클릭 시에만 점유한다.
 - 동시 요청에서 overbooking이 발생하지 않는다.
-- 성공 시 PENDING 예약과 reservation_night가 생성된다.
+- 성공 시 `PENDING` 예약과 `reservation_night`가 생성된다.
+- `PENDING` 상태에서는 host decision 전까지 점유가 유지된다.
 - 실패 시 전체 롤백된다.
 
 ### Validation
@@ -245,6 +302,10 @@
 ### Goal
 호스트가 숙소와 판매 자산을 운영할 수 있다.
 
+### Depends on
+- `BD-07`: overlapping pricing policy는 additive delta 합산 모델을 따른다.
+- `BD-08`: block은 room-level only 모델을 따른다.
+
 ### Includes
 - 숙소 CRUD/비활성화
 - 객실 타입 CRUD/비활성화
@@ -259,10 +320,12 @@
 
 ### Acceptance criteria
 - 자기 숙소만 관리 가능
-- 가격 정책이 최종 가격 계산에 반영
-- block된 객실은 가용 재고에서 제외
-- 이력 있는 자산은 삭제보다 비활성화 우선
-- 변경 이력이 감사 대상으로 남는다
+- 가격 정책이 최종 가격 계산에 반영된다.
+- 동일 일자에 겹치는 여러 가격 정책은 additive delta 합산으로 반영된다.
+- block된 객실은 가용 재고에서 제외된다.
+- block은 `room_id` 기준으로만 생성/수정/해제된다.
+- 이력 있는 자산은 삭제보다 비활성화 우선이다.
+- 변경 이력이 감사 대상으로 남는다.
 
 ### Validation
 - host ownership 테스트
@@ -275,6 +338,12 @@
 ## M6 — 호스트 예약 운영
 ### Goal
 호스트가 예약을 확정/취소하고 실제 객실을 날짜별로 재배정한다.
+
+### Depends on
+- `M3`의 nightly assignment model
+- `BD-05`: host decision 전 `PENDING` inventory hold 유지
+- `BD-06`: 재배정은 `reservation_nights` row를 수정하는 방식
+- `BD-08`: room-level block과 충돌하지 않는 room만 재배정 가능
 
 ### Includes
 - 예약 목록
@@ -289,11 +358,12 @@
 - BR-007
 
 ### Acceptance criteria
-- 호스트는 자기 숙소 예약만 조회/조작 가능
-- PENDING → CONFIRMED/CANCELLED 흐름 동작
-- reservation_night 단위 배정 변경 가능
-- 연박 중 날짜별 다른 객실 배정 가능
-- 변경 사유와 이력 기록
+- 호스트는 자기 숙소 예약만 조회/조작 가능하다.
+- `PENDING -> CONFIRMED/CANCELLED` 흐름이 동작한다.
+- host의 거절은 inventory release를 수반하는 `CANCELLED` terminal flow로 정리된다.
+- `reservation_night` 단위 배정 변경이 가능하다.
+- 연박 중 날짜별 다른 객실 배정이 가능하다.
+- 변경 사유와 이력이 기록된다.
 
 ### Validation
 - host scope 테스트
@@ -320,11 +390,11 @@
 - BR-008
 
 ### Acceptance criteria
-- 관리자 전용 진입점 존재
-- 관리자만 전체 회원/숙소/예약 조회 가능
-- 권한요청 승인 시 역할 반영
-- 감사로그에 actor / target / time / reason 또는 before-after 포함
-- 공지/약관 관리 가능
+- 관리자 전용 진입점이 존재한다.
+- 관리자만 전체 회원/숙소/예약 조회가 가능하다.
+- 권한요청 승인 시 역할이 반영된다.
+- 감사로그에 actor / target / time / reason 또는 before-after가 포함된다.
+- 공지/약관 관리가 가능하다.
 
 ### Validation
 - 관리자 권한 테스트
@@ -350,10 +420,10 @@
 - REQ-SEC-001 ~ REQ-SEC-008
 
 ### Acceptance criteria
-- 주요 응답시간 목표 확인
-- 내부 정보 노출 금지 확인
-- 분리 배포 문서 존재
-- 운영 체크리스트 존재
+- 주요 응답시간 목표가 확인된다.
+- 내부 정보 노출 금지가 확인된다.
+- 분리 배포 문서가 존재한다.
+- 운영 체크리스트가 존재한다.
 
 ### Validation
 - 성능 측정
@@ -363,7 +433,7 @@
 
 ---
 
-## 5. Stop-and-fix rules
+## 7. Stop-and-fix rules
 
 다음 중 하나가 발생하면 즉시 멈추고 해결한다.
 
@@ -377,13 +447,13 @@
 
 ---
 
-## 6. Current recommendation
+## 8. Current recommendation
 
-현재는 **M0만 먼저 완료**하는 것이 가장 안전하다.  
-즉, 지금 Codex에 바로 큰 기능 구현을 시키지 말고 아래 순서를 지킨다.
+현재는 **M0 문서 정렬과 schema reconciliation만 먼저 완료**하는 것이 가장 안전하다.  
+즉, 지금은 production code나 API 구현보다 아래 순서를 먼저 지킨다.
 
-1. open questions 정리
-2. schema reconciliation
-3. repo bootstrap
+1. baseline decision 확정
+2. remaining open question 정리
+3. schema reconciliation 문서 작성
 4. validation commands 확정
-5. 그 다음 M1 착수
+5. 그 다음 repo bootstrap 또는 M1 착수
