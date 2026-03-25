@@ -449,11 +449,117 @@
 
 ## 8. Current recommendation
 
-현재는 **M0 문서 정렬과 schema reconciliation만 먼저 완료**하는 것이 가장 안전하다.  
-즉, 지금은 production code나 API 구현보다 아래 순서를 먼저 지킨다.
+현재 브랜치 기준 추천 순서는 아래와 같다.
 
-1. baseline decision 확정
-2. remaining open question 정리
-3. schema reconciliation 문서 작성
-4. validation commands 확정
-5. 그 다음 repo bootstrap 또는 M1 착수
+1. validated SQL baseline 유지
+2. `M1`의 인증/세션 bootstrap 검증 완료
+3. `M3`의 guest reservation write slice를 먼저 구현
+4. `M6`의 host approval/rejection 최소 슬라이스와 브라우저 검증용 `guest-web` / `ops-web` 최소 UI를 연결
+5. 이후 `M2` read/search slice와 `M4` guest reservation read/cancel로 확장
+
+메모:
+- milestone 번호는 기능 묶음 기준이며, 현재 브랜치에서는 아키텍처 우선순위에 따라 `M3` write slice를 `M2`보다 먼저 착수할 수 있다.
+- 단, `BD-01`, `BD-05`, `BD-06`을 벗어나는 재고/동시성 가정은 허용하지 않는다.
+---
+
+## Latest Implementation Note (2026-03-24)
+
+- Scope completed in this pass:
+  `M6` operations expansion plus a narrow `M2` hardening item for guest past-date search validation.
+- Traceability:
+  `REQ-F-096 ~ REQ-F-106`, `BR-007`, and guest-search hardening aligned to `REQ-F-036 ~ REQ-F-049`, `REQ-NF-001`, `REQ-NF-002`.
+- Implemented:
+  ops reservation list across `PENDING` / `CONFIRMED` / `CANCELLED`,
+  ops reservation detail,
+  host/admin approve-reject access,
+  same-day-and-future nightly reassignment,
+  block/pricing read context in ops detail,
+  ops-web list/detail/reassignment UI,
+  guest-web KST-based past-date input validation.
+- Validation completed:
+  `:guest-api:build`, `:ops-api:test`, `:guest-api:build :ops-api:build`,
+  `pnpm --filter guest-web build`,
+  `pnpm --filter ops-web build`.
+
+## Latest Implementation Note (2026-03-25)
+
+- Scope completed in this pass:
+  `M5` minimal room-block management on top of the existing ops reservation foundation.
+- Traceability:
+  `REQ-F-076 ~ REQ-F-095`, `REQ-F-096 ~ REQ-F-106`, `BD-08`, `REQ-NF-003`, `REQ-NF-005`.
+- Implemented:
+  ops room-block list by accommodation or room filter,
+  room-level block create,
+  room-level block deactivate,
+  host ownership checks with admin override access,
+  overlapping active-block rejection on the same room,
+  audit logging for block create/deactivate,
+  ops-web room-block management panel.
+- Behavioral linkage:
+  guest availability and ops reassignment continue to read only `ACTIVE` room blocks,
+  so block create/deactivate now affects those flows immediately.
+- Validation completed:
+  `:guest-api:build :ops-api:build`,
+  `pnpm --filter guest-web build`,
+  `pnpm --filter ops-web build`.
+
+## Latest Implementation Note (2026-03-25 / pricing)
+
+- Scope completed in this pass:
+  `M5` minimal pricing write management on top of the existing ops reservation and room-block foundation.
+- Traceability:
+  `REQ-F-076 ~ REQ-F-095`, `REQ-F-036 ~ REQ-F-049`, `BD-07`, `REQ-NF-003`, `REQ-NF-005`.
+- Implemented:
+  ops price-policy list by accommodation or room-type filter,
+  additive delta policy create,
+  policy deactivate,
+  host ownership checks with admin override access,
+  `day_of_week_mask` support,
+  audit logging for price-policy create/deactivate,
+  ops-web pricing management panel.
+- Behavioral linkage:
+  guest accommodation search/detail now show check-in-night pricing preview as
+  `base_price + sum(applicable active deltas)`,
+  overlapping active policies remain allowed and stack additively,
+  ops reservation detail pricing context continues to read active overlapping policies,
+  so policy create/deactivate now affects both guest preview and ops detail without extra sync logic.
+- Validation completed:
+  `:guest-api:build`,
+  `:ops-api:clean :ops-api:build`,
+  `pnpm --filter guest-web build`,
+  `pnpm --filter ops-web build`.
+
+## Latest Implementation Note (2026-03-25 / account-admin)
+
+- Scope completed in this pass:
+  partial `M1` account creation and host-role-request flow,
+  plus minimal `M7` admin user-management and host-role-request review.
+- Traceability:
+  `REQ-F-001 ~ REQ-F-035`,
+  `REQ-F-070 ~ REQ-F-075`,
+  `REQ-F-107 ~ REQ-F-127`,
+  `REQ-F-113`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Implemented:
+  guest signup,
+  duplicate login/email/phone validation,
+  bcrypt password hashing,
+  transactional `users` + `user_login_security` creation,
+  guest host-role-request state/create flow,
+  admin-only user list/detail,
+  admin-only host-role-request list/detail/approve/reject,
+  single-role promotion from `GUEST` to `HOST`,
+  audit logging for host-role-request create/approve/reject,
+  guest-web signup and host-role-request panels,
+  ops-web admin-only users/request-review panel.
+- Explicitly out of scope in this pass:
+  account recovery,
+  password-reset verification UX/API,
+  find-id recovery,
+  forced session invalidation on role change,
+  terms-agreement capture during signup.
+- Validation completed:
+  `:guest-api:build`,
+  `:ops-api:build`,
+  `pnpm --filter guest-web build`,
+  `pnpm --filter ops-web build`.

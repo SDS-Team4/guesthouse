@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.reservation.mapper.ReservationInventoryMapper">
+
+    <resultMap id="LockedRoomTypeRecordMap" type="com.guesthouse.shared.db.reservation.model.LockedRoomTypeRecord">
+        <id property="roomTypeId" column="room_type_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+    </resultMap>
+
+    <resultMap id="BlockedRoomRangeRecordMap" type="com.guesthouse.shared.db.reservation.model.BlockedRoomRangeRecord">
+        <result property="roomId" column="room_id"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+    </resultMap>
+
+    <resultMap id="ActiveRoomInventoryRecordMap" type="com.guesthouse.shared.db.reservation.model.ActiveRoomInventoryRecord">
+        <id property="roomId" column="room_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomCode" column="room_code"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+    </resultMap>
+
+    <resultMap id="OccupiedRoomNightRecordMap" type="com.guesthouse.shared.db.reservation.model.OccupiedRoomNightRecord">
+        <result property="roomId" column="room_id"/>
+        <result property="stayDate" column="stay_date"/>
+    </resultMap>
+
+    <select id="lockActiveRoomType" resultMap="LockedRoomTypeRecordMap">
+        SELECT
+            rt.room_type_id,
+            rt.accommodation_id,
+            rt.name AS room_type_name
+        FROM room_types rt
+        JOIN accommodations a
+            ON a.accommodation_id = rt.accommodation_id
+        WHERE rt.room_type_id = #{roomTypeId}
+          AND rt.status = 'ACTIVE'
+          AND a.status = 'ACTIVE'
+        FOR UPDATE
+    </select>
+
+    <select id="lockActiveRoomIdsByRoomType" resultType="long">
+        SELECT r.room_id
+        FROM rooms r
+        WHERE r.room_type_id = #{roomTypeId}
+          AND r.status = 'ACTIVE'
+        ORDER BY r.room_id
+        FOR UPDATE
+    </select>
+
+    <select id="lockActiveRoomsByAccommodation" resultMap="ActiveRoomInventoryRecordMap">
+        SELECT
+            r.room_id,
+            r.accommodation_id,
+            r.room_code,
+            r.room_type_id,
+            rt.name AS room_type_name
+        FROM rooms r
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        JOIN accommodations a
+            ON a.accommodation_id = r.accommodation_id
+        WHERE r.accommodation_id = #{accommodationId}
+          AND r.status = 'ACTIVE'
+          AND rt.status = 'ACTIVE'
+          AND a.status = 'ACTIVE'
+        ORDER BY r.room_type_id, r.room_id
+        FOR UPDATE
+    </select>
+
+    <select id="findActiveRoomBlocksForStay" resultMap="BlockedRoomRangeRecordMap">
+        SELECT
+            rb.room_id,
+            rb.start_date,
+            rb.end_date
+        FROM room_blocks rb
+        JOIN rooms r
+            ON r.room_id = rb.room_id
+        WHERE r.room_type_id = #{roomTypeId}
+          AND rb.status = 'ACTIVE'
+          AND rb.start_date &lt; #{checkOutDate}
+          AND rb.end_date &gt;= #{checkInDate}
+        ORDER BY rb.room_id, rb.start_date, rb.end_date
+        FOR UPDATE
+    </select>
+
+    <select id="findActiveRoomBlocksForAccommodationStay" resultMap="BlockedRoomRangeRecordMap">
+        SELECT
+            rb.room_id,
+            rb.start_date,
+            rb.end_date
+        FROM room_blocks rb
+        JOIN rooms r
+            ON r.room_id = rb.room_id
+        WHERE r.accommodation_id = #{accommodationId}
+          AND rb.status = 'ACTIVE'
+          AND rb.start_date &lt; #{checkOutDate}
+          AND rb.end_date &gt;= #{checkInDate}
+        ORDER BY rb.room_id, rb.start_date, rb.end_date
+        FOR UPDATE
+    </select>
+
+    <select id="findOccupiedRoomNightsForStay" resultMap="OccupiedRoomNightRecordMap">
+        SELECT
+            rn.assigned_room_id AS room_id,
+            rn.stay_date
+        FROM reservation_nights rn
+        JOIN reservations rv
+            ON rv.reservation_id = rn.reservation_id
+        JOIN rooms r
+            ON r.room_id = rn.assigned_room_id
+        WHERE r.room_type_id = #{roomTypeId}
+          AND rn.stay_date &gt;= #{checkInDate}
+          AND rn.stay_date &lt; #{checkOutDate}
+          AND rv.status IN ('PENDING', 'CONFIRMED')
+        ORDER BY rn.stay_date, rn.assigned_room_id
+        FOR UPDATE
+    </select>
+
+    <select id="findOccupiedRoomNightsForAccommodationStay" resultMap="OccupiedRoomNightRecordMap">
+        SELECT
+            rn.assigned_room_id AS room_id,
+            rn.stay_date
+        FROM reservation_nights rn
+        JOIN reservations rv
+            ON rv.reservation_id = rn.reservation_id
+        JOIN rooms r
+            ON r.room_id = rn.assigned_room_id
+        WHERE r.accommodation_id = #{accommodationId}
+          AND rn.stay_date &gt;= #{checkInDate}
+          AND rn.stay_date &lt; #{checkOutDate}
+          AND rv.status IN ('PENDING', 'CONFIRMED')
+        ORDER BY rn.stay_date, rn.assigned_room_id
+        FOR UPDATE
+    </select>
+</mapper>

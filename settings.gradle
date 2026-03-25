@@ -1,0 +1,7 @@
+rootProject.name = 'guesthouse'
+
+include 'guest-api'
+include 'ops-api'
+include 'shared:shared-domain'
+include 'shared:shared-auth'
+include 'shared:shared-db-conventions'

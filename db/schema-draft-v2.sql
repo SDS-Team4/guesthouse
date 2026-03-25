@@ -1,0 +1,191 @@
+﻿CREATE TABLE `PRICE_POLICIES` (
+	`policy_id`	BIGINT	NOT NULL,
+	`accommodation_id`	BIGINT	NOT NULL,
+	`room_type_id`	BIGINT	NOT NULL,
+	`policy_name`	VARCHAR(50)	NULL,
+	`start_date`	DATE	NOT NULL,
+	`end_date`	DATE	NOT NULL,
+	`price_value`	BIGINT	NOT NULL,
+	`status`	ENUM('ACTIVE', 'INACTIVE')	NOT NULL,
+	`day_of_week_mask`	TINYINT	NULL
+);
+
+CREATE TABLE `USERS` (
+	`user_id`	BIGINT	NOT NULL,
+	`login_id`	VARCHAR(50)	NOT NULL,
+	`password_hash`	VARCHAR(255)	NOT NULL,
+	`name`	VARCHAR(50)	NOT NULL,
+	`email`	VARCHAR(100)	NOT NULL,
+	`phone`	VARCHAR(20)	NOT NULL,
+	`status`	ENUM('ACTIVE', 'INACTIVE')	NOT NULL	DEFAULT 'ACTIVE',
+	`role`	ENUM('GUEST', 'HOST', 'ADMIN')	NOT NULL,
+	`termsAgreed`	TINYINT(1)	NOT NULL
+);
+
+CREATE TABLE `ACCOMMODATIONS` (
+	`accommodation_id`	BIGINT	NOT NULL,
+	`host_id`	BIGINT	NOT NULL,
+	`name`	VARCHAR(100)	NOT NULL,
+	`address`	VARCHAR(255)	NOT NULL,
+	`region`	VARCHAR(50)	NOT NULL,
+	`info_text`	TEXT	NULL,
+	`check_in_time`	TIME	NOT NULL,
+	`check_out_time`	TIME	NOT NULL,
+	`status`	ENUM('ACTIVE', 'INACTIVE')	NOT NULL	DEFAULT 'ACTIVE',
+	`image_path`	VARCHAR(255)	NULL
+);
+
+CREATE TABLE `TERM` (
+	`terms_id`	BIGINT	NOT NULL,
+	`category`	ENUM('SERVICE', 'PRIVACY', 'MARKETING')	NOT NULL,
+	`title`	VARCHAR(100)	NOT NULL,
+	`content`	TEXT	NOT NULL,
+	`version`	VARCHAR(50)	NULL,
+	`is_required`	TINYINT(1)	NOT NULL,
+	`status`	ENUM('PUBLISHED', 'DRAFT', 'ARCHIVED')	NOT NULL,
+	`effective_date`	DATETIME	NOT NULL
+);
+
+CREATE TABLE `ROOM` (
+	`room_id`	BIGINT	NOT NULL,
+	`room_type_id`	BIGINT	NOT NULL,
+	`accommodation_id`	BIGINT	NOT NULL,
+	`room_code`	VARCHAR(20)	NOT NULL,
+	`status`	ENUM('AVAILABLE', 'UNAVAILABLE')	NOT NULL	DEFAULT 'AVAILABLE',
+	`memo`	TEXT	NULL
+);
+
+CREATE TABLE `BLOCKS` (
+	`block_id`	BIGINT	NOT NULL,
+	`room_id`	BIGINT	NOT NULL,
+	`room_type_id`	BIGINT	NOT NULL,
+	`accommodation_id`	BIGINT	NOT NULL,
+	`start_date`	DATE	NOT NULL,
+	`end_date`	DATE	NOT NULL,
+	`reason_type`	ENUM('FRIEND', 'FIX', 'ETC')	NOT NULL,
+	`status`	ENUM('ACTIVE', 'INACTIVE')	NOT NULL
+);
+
+CREATE TABLE `AUDIT_LOGS` (
+	`log_id`	BIGINT	NOT NULL,
+	`user_id`	BIGINT	NOT NULL,
+	`log_type`	VARCHAR(50)	NULL,
+	`created_at`	DATETIME	NULL,
+	`detail`	TEXT	NULL
+);
+
+CREATE TABLE `RESERVATIONS` (
+	`reservation_id`	BIGINT	NOT NULL,
+	`user_id`	BIGINT	NOT NULL,
+	`reservation_no`	VARCHAR(50)	NOT NULL,
+	`check_in_date`	DATE	NOT NULL,
+	`check_out_date`	DATE	NOT NULL,
+	`status`	ENUM('PENDING', 'APPROVED', 'CANCELLED')	NOT NULL	DEFAULT 'PENDING',
+	`requested_time`	TIMESTAMP	NOT NULL,
+	`price_when_booked`	BIGINT	NOT NULL,
+	`people`	TINYINT	NOT NULL
+);
+
+CREATE TABLE `AUTH_REQUEST` (
+	`request_id`	BIGINT	NOT NULL,
+	`user_id`	BIGINT	NOT NULL,
+	`status`	ENUM('PENDING, 'APPROVED', 'DENIED')	NOT NULL
+);
+
+CREATE TABLE `RESERVATION_NIGHTS` (
+	`night_id`	BIGINT	NOT NULL,
+	`reservation_id`	BIGINT	NOT NULL,
+	`accommodation_id`	BIGINT	NOT NULL,
+	`room_type_id`	BIGINT	NOT NULL,
+	`room_id`	BIGINT	NOT NULL,
+	`stay_date`	DATE	NOT NULL
+);
+
+CREATE TABLE `ROOM_TYPES` (
+	`room_type_id`	BIGINT	NOT NULL,
+	`accommodation_id`	BIGINT	NOT NULL,
+	`name`	VARCHAR(50)	NOT NULL,
+	`base_capacity`	INT	NOT NULL,
+	`max_capacity`	INT	NOT NULL,
+	`base_price`	INT	NOT NULL,
+	`info_text`	TEXT	NULL,
+	`status`	ENUM('ACTIVE', 'INACTIVE')	NOT NULL,
+	`image_path`	VARCHAR(255)	NULL
+);
+
+ALTER TABLE `PRICE_POLICIES` ADD CONSTRAINT `PK_PRICE_POLICIES` PRIMARY KEY (
+	`policy_id`
+);
+
+ALTER TABLE `USERS` ADD CONSTRAINT `PK_USERS` PRIMARY KEY (
+	`user_id`
+);
+
+ALTER TABLE `ACCOMMODATIONS` ADD CONSTRAINT `PK_ACCOMMODATIONS` PRIMARY KEY (
+	`accommodation_id`
+);
+
+ALTER TABLE `TERM` ADD CONSTRAINT `PK_TERM` PRIMARY KEY (
+	`terms_id`
+);
+
+ALTER TABLE `ROOM` ADD CONSTRAINT `PK_ROOM` PRIMARY KEY (
+	`room_id`,
+	`room_type_id`,
+	`accommodation_id`
+);
+
+ALTER TABLE `BLOCKS` ADD CONSTRAINT `PK_BLOCKS` PRIMARY KEY (
+	`block_id`
+);
+
+ALTER TABLE `AUDIT_LOGS` ADD CONSTRAINT `PK_AUDIT_LOGS` PRIMARY KEY (
+	`log_id`
+);
+
+ALTER TABLE `RESERVATIONS` ADD CONSTRAINT `PK_RESERVATIONS` PRIMARY KEY (
+	`reservation_id`
+);
+
+ALTER TABLE `AUTH_REQUEST` ADD CONSTRAINT `PK_AUTH_REQUEST` PRIMARY KEY (
+	`request_id`
+);
+
+ALTER TABLE `RESERVATION_NIGHTS` ADD CONSTRAINT `PK_RESERVATION_NIGHTS` PRIMARY KEY (
+	`night_id`,
+	`reservation_id`
+);
+
+ALTER TABLE `ROOM_TYPES` ADD CONSTRAINT `PK_ROOM_TYPES` PRIMARY KEY (
+	`room_type_id`,
+	`accommodation_id`
+);
+
+ALTER TABLE `ROOM` ADD CONSTRAINT `FK_ROOM_TYPES_TO_ROOM_1` FOREIGN KEY (
+	`room_type_id`
+)
+REFERENCES `ROOM_TYPES` (
+	`room_type_id`
+);
+
+ALTER TABLE `ROOM` ADD CONSTRAINT `FK_ROOM_TYPES_TO_ROOM_2` FOREIGN KEY (
+	`accommodation_id`
+)
+REFERENCES `ROOM_TYPES` (
+	`accommodation_id`
+);
+
+ALTER TABLE `RESERVATION_NIGHTS` ADD CONSTRAINT `FK_RESERVATIONS_TO_RESERVATION_NIGHTS_1` FOREIGN KEY (
+	`reservation_id`
+)
+REFERENCES `RESERVATIONS` (
+	`reservation_id`
+);
+
+ALTER TABLE `ROOM_TYPES` ADD CONSTRAINT `FK_ACCOMMODATIONS_TO_ROOM_TYPES_1` FOREIGN KEY (
+	`accommodation_id`
+)
+REFERENCES `ACCOMMODATIONS` (
+	`accommodation_id`
+);
+

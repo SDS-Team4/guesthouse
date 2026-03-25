@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.roomblock.mapper.RoomBlockQueryMapper">
+
+    <resultMap id="OpsAccommodationOptionRecordMap" type="com.guesthouse.shared.db.roomblock.model.OpsAccommodationOptionRecord">
+        <id property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="region" column="region"/>
+    </resultMap>
+
+    <resultMap id="OpsRoomOptionRecordMap" type="com.guesthouse.shared.db.roomblock.model.OpsRoomOptionRecord">
+        <id property="roomId" column="room_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="roomCode" column="room_code"/>
+    </resultMap>
+
+    <resultMap id="OpsRoomBlockRecordMap" type="com.guesthouse.shared.db.roomblock.model.OpsRoomBlockRecord">
+        <id property="blockId" column="block_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="roomId" column="room_id"/>
+        <result property="roomCode" column="room_code"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="reasonType" column="reason_type"/>
+        <result property="reasonText" column="reason_text"/>
+        <result property="status" column="status"/>
+        <result property="createdByUserId" column="created_by_user_id"/>
+        <result property="createdByLoginId" column="created_by_login_id"/>
+        <result property="createdByName" column="created_by_name"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <resultMap id="OpsRoomTargetRecordMap" type="com.guesthouse.shared.db.roomblock.model.OpsRoomTargetRecord">
+        <id property="roomId" column="room_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="roomCode" column="room_code"/>
+        <result property="roomStatus" column="room_status"/>
+        <result property="hostUserId" column="host_user_id"/>
+    </resultMap>
+
+    <resultMap id="OpsRoomBlockMutationTargetRecordMap" type="com.guesthouse.shared.db.roomblock.model.OpsRoomBlockMutationTargetRecord">
+        <id property="blockId" column="block_id"/>
+        <result property="roomId" column="room_id"/>
+        <result property="roomCode" column="room_code"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="hostUserId" column="host_user_id"/>
+        <result property="status" column="status"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="reasonType" column="reason_type"/>
+        <result property="reasonText" column="reason_text"/>
+    </resultMap>
+
+    <select id="findAccessibleAccommodations" resultMap="OpsAccommodationOptionRecordMap">
+        SELECT
+            a.accommodation_id,
+            a.name AS accommodation_name,
+            a.region
+        FROM accommodations a
+        WHERE a.status = 'ACTIVE'
+          AND (#{isAdmin} = TRUE OR a.host_user_id = #{hostUserId})
+        ORDER BY a.name ASC, a.accommodation_id ASC
+    </select>
+
+    <select id="findActiveRoomsByAccommodationId" resultMap="OpsRoomOptionRecordMap">
+        SELECT
+            r.room_id,
+            r.accommodation_id,
+            r.room_type_id,
+            rt.name AS room_type_name,
+            r.room_code
+        FROM rooms r
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        JOIN accommodations a
+            ON a.accommodation_id = r.accommodation_id
+        WHERE r.accommodation_id = #{accommodationId}
+          AND r.status = 'ACTIVE'
+          AND rt.status = 'ACTIVE'
+          AND a.status = 'ACTIVE'
+        ORDER BY rt.name ASC, r.room_code ASC, r.room_id ASC
+    </select>
+
+    <select id="findRoomBlocks" resultMap="OpsRoomBlockRecordMap">
+        SELECT
+            rb.block_id,
+            a.accommodation_id,
+            a.name AS accommodation_name,
+            rb.room_id,
+            r.room_code,
+            r.room_type_id,
+            rt.name AS room_type_name,
+            rb.start_date,
+            rb.end_date,
+            rb.reason_type,
+            rb.reason_text,
+            rb.status,
+            rb.created_by_user_id,
+            u.login_id AS created_by_login_id,
+            u.name AS created_by_name,
+            rb.created_at
+        FROM room_blocks rb
+        JOIN rooms r
+            ON r.room_id = rb.room_id
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        JOIN accommodations a
+            ON a.accommodation_id = r.accommodation_id
+        JOIN users u
+            ON u.user_id = rb.created_by_user_id
+        WHERE (#{isAdmin} = TRUE OR a.host_user_id = #{hostUserId})
+          AND (
+              #{accommodationId} IS NULL
+              OR a.accommodation_id = #{accommodationId}
+          )
+          AND (
+              #{roomId} IS NULL
+              OR rb.room_id = #{roomId}
+          )
+        ORDER BY rb.created_at DESC, rb.block_id DESC
+    </select>
+
+    <select id="lockRoomTarget" resultMap="OpsRoomTargetRecordMap">
+        SELECT
+            r.room_id,
+            r.accommodation_id,
+            a.name AS accommodation_name,
+            r.room_type_id,
+            rt.name AS room_type_name,
+            r.room_code,
+            r.status AS room_status,
+            a.host_user_id
+        FROM rooms r
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        JOIN accommodations a
+            ON a.accommodation_id = r.accommodation_id
+        WHERE r.room_id = #{roomId}
+        FOR UPDATE
+    </select>
+
+    <select id="findOverlappingActiveBlockId" resultType="long">
+        SELECT rb.block_id
+        FROM room_blocks rb
+        WHERE rb.room_id = #{roomId}
+          AND rb.status = 'ACTIVE'
+          AND rb.start_date &lt;= #{endDate}
+          AND rb.end_date &gt;= #{startDate}
+        ORDER BY rb.block_id ASC
+        LIMIT 1
+    </select>
+
+    <select id="lockRoomBlockTarget" resultMap="OpsRoomBlockMutationTargetRecordMap">
+        SELECT
+            rb.block_id,
+            rb.room_id,
+            r.room_code,
+            a.accommodation_id,
+            a.name AS accommodation_name,
+            a.host_user_id,
+            rb.status,
+            rb.start_date,
+            rb.end_date,
+            rb.reason_type,
+            rb.reason_text
+        FROM room_blocks rb
+        JOIN rooms r
+            ON r.room_id = rb.room_id
+        JOIN accommodations a
+            ON a.accommodation_id = r.accommodation_id
+        WHERE rb.block_id = #{blockId}
+        FOR UPDATE
+    </select>
+</mapper>

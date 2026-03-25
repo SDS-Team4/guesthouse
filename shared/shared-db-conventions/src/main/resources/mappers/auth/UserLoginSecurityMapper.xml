@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.auth.mapper.UserLoginSecurityMapper">
+
+    <insert id="insertIfAbsent">
+        INSERT INTO user_login_security (
+            user_id,
+            failed_login_count
+        ) VALUES (
+            #{userId},
+            0
+        )
+        ON DUPLICATE KEY UPDATE
+            user_id = user_id
+    </insert>
+
+    <update id="registerFailedLogin">
+        UPDATE user_login_security
+        SET
+            failed_login_count = failed_login_count + 1,
+            last_failed_at = #{failedAt}
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="registerSuccessfulLogin">
+        UPDATE user_login_security
+        SET
+            failed_login_count = 0,
+            last_failed_at = NULL,
+            locked_until = NULL,
+            last_login_at = #{loginAt}
+        WHERE user_id = #{userId}
+    </update>
+</mapper>

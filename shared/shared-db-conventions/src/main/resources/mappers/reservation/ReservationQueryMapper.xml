@@ -1,0 +1,691 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper">
+
+    <resultMap id="ActiveRoomTypeOptionRecordMap" type="com.guesthouse.shared.db.reservation.model.ActiveRoomTypeOptionRecord">
+        <id property="roomTypeId" column="room_type_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="basePrice" column="base_price"/>
+    </resultMap>
+
+    <resultMap id="AccommodationRoomInventoryRecordMap" type="com.guesthouse.shared.db.reservation.model.AccommodationRoomInventoryRecord">
+        <id property="roomId" column="room_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="region" column="region"/>
+        <result property="address" column="address"/>
+        <result property="infoText" column="info_text"/>
+        <result property="checkInTime" column="check_in_time"/>
+        <result property="checkOutTime" column="check_out_time"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="baseCapacity" column="base_capacity"/>
+        <result property="maxCapacity" column="max_capacity"/>
+        <result property="basePrice" column="base_price"/>
+    </resultMap>
+
+    <resultMap id="ActiveRoomInventoryRecordMap" type="com.guesthouse.shared.db.reservation.model.ActiveRoomInventoryRecord">
+        <id property="roomId" column="room_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomCode" column="room_code"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+    </resultMap>
+
+    <resultMap id="AccommodationRoomBlockRecordMap" type="com.guesthouse.shared.db.reservation.model.AccommodationRoomBlockRecord">
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomId" column="room_id"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+    </resultMap>
+
+    <resultMap id="AccommodationOccupiedRoomNightRecordMap" type="com.guesthouse.shared.db.reservation.model.AccommodationOccupiedRoomNightRecord">
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomId" column="room_id"/>
+        <result property="stayDate" column="stay_date"/>
+    </resultMap>
+
+    <resultMap id="GuestReservationSummaryRecordMap" type="com.guesthouse.shared.db.reservation.model.GuestReservationSummaryRecord">
+        <id property="reservationId" column="reservation_id"/>
+        <result property="reservationNo" column="reservation_no"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="checkInDate" column="check_in_date"/>
+        <result property="checkOutDate" column="check_out_date"/>
+        <result property="status" column="status"/>
+        <result property="requestedAt" column="requested_at"/>
+        <result property="confirmedAt" column="confirmed_at"/>
+        <result property="cancelledAt" column="cancelled_at"/>
+    </resultMap>
+
+    <resultMap id="GuestReservationDetailRecordMap" type="com.guesthouse.shared.db.reservation.model.GuestReservationDetailRecord">
+        <id property="reservationId" column="reservation_id"/>
+        <result property="reservationNo" column="reservation_no"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="accommodationRegion" column="accommodation_region"/>
+        <result property="accommodationAddress" column="accommodation_address"/>
+        <result property="accommodationCheckInTime" column="accommodation_check_in_time"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="checkInDate" column="check_in_date"/>
+        <result property="checkOutDate" column="check_out_date"/>
+        <result property="status" column="status"/>
+        <result property="requestedAt" column="requested_at"/>
+        <result property="confirmedAt" column="confirmed_at"/>
+        <result property="cancelledAt" column="cancelled_at"/>
+    </resultMap>
+
+    <resultMap id="GuestReservationNightRecordMap" type="com.guesthouse.shared.db.reservation.model.GuestReservationNightRecord">
+        <id property="reservationNightId" column="reservation_night_id"/>
+        <result property="stayDate" column="stay_date"/>
+    </resultMap>
+
+    <resultMap id="GuestReservationStatusHistoryRecordMap" type="com.guesthouse.shared.db.reservation.model.GuestReservationStatusHistoryRecord">
+        <id property="historyId" column="history_id"/>
+        <result property="fromStatus" column="from_status"/>
+        <result property="toStatus" column="to_status"/>
+        <result property="actionType" column="action_type"/>
+        <result property="reasonType" column="reason_type"/>
+        <result property="reasonText" column="reason_text"/>
+        <result property="changedAt" column="changed_at"/>
+    </resultMap>
+
+    <resultMap id="GuestReservationCancellationTargetRecordMap" type="com.guesthouse.shared.db.reservation.model.GuestReservationCancellationTargetRecord">
+        <id property="reservationId" column="reservation_id"/>
+        <result property="reservationNo" column="reservation_no"/>
+        <result property="status" column="status"/>
+        <result property="checkInDate" column="check_in_date"/>
+        <result property="checkInTime" column="check_in_time"/>
+    </resultMap>
+
+    <resultMap id="PendingReservationSummaryRecordMap" type="com.guesthouse.shared.db.reservation.model.PendingReservationSummaryRecord">
+        <id property="reservationId" column="reservation_id"/>
+        <result property="reservationNo" column="reservation_no"/>
+        <result property="guestUserId" column="guest_user_id"/>
+        <result property="guestLoginId" column="guest_login_id"/>
+        <result property="guestName" column="guest_name"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="checkInDate" column="check_in_date"/>
+        <result property="checkOutDate" column="check_out_date"/>
+        <result property="status" column="status"/>
+        <result property="requestedAt" column="requested_at"/>
+    </resultMap>
+
+    <resultMap id="ReservationDecisionTargetRecordMap" type="com.guesthouse.shared.db.reservation.model.ReservationDecisionTargetRecord">
+        <id property="reservationId" column="reservation_id"/>
+        <result property="reservationNo" column="reservation_no"/>
+        <result property="guestUserId" column="guest_user_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="hostUserId" column="host_user_id"/>
+        <result property="status" column="status"/>
+        <result property="requestedAt" column="requested_at"/>
+    </resultMap>
+
+    <resultMap id="OpsReservationListRecordMap" type="com.guesthouse.shared.db.reservation.model.OpsReservationListRecord">
+        <id property="reservationId" column="reservation_id"/>
+        <result property="reservationNo" column="reservation_no"/>
+        <result property="guestUserId" column="guest_user_id"/>
+        <result property="guestLoginId" column="guest_login_id"/>
+        <result property="guestName" column="guest_name"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="checkInDate" column="check_in_date"/>
+        <result property="checkOutDate" column="check_out_date"/>
+        <result property="status" column="status"/>
+        <result property="requestedAt" column="requested_at"/>
+        <result property="confirmedAt" column="confirmed_at"/>
+        <result property="cancelledAt" column="cancelled_at"/>
+        <result property="reassignmentPossible" column="reassignment_possible"/>
+        <result property="hasRelevantBlocks" column="has_relevant_blocks"/>
+        <result property="hasRelevantPricing" column="has_relevant_pricing"/>
+    </resultMap>
+
+    <resultMap id="OpsReservationDetailRecordMap" type="com.guesthouse.shared.db.reservation.model.OpsReservationDetailRecord">
+        <id property="reservationId" column="reservation_id"/>
+        <result property="reservationNo" column="reservation_no"/>
+        <result property="guestUserId" column="guest_user_id"/>
+        <result property="guestLoginId" column="guest_login_id"/>
+        <result property="guestName" column="guest_name"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
+        <result property="accommodationRegion" column="accommodation_region"/>
+        <result property="accommodationAddress" column="accommodation_address"/>
+        <result property="accommodationCheckInTime" column="accommodation_check_in_time"/>
+        <result property="accommodationCheckOutTime" column="accommodation_check_out_time"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="hostUserId" column="host_user_id"/>
+        <result property="checkInDate" column="check_in_date"/>
+        <result property="checkOutDate" column="check_out_date"/>
+        <result property="status" column="status"/>
+        <result property="requestedAt" column="requested_at"/>
+        <result property="confirmedAt" column="confirmed_at"/>
+        <result property="cancelledAt" column="cancelled_at"/>
+    </resultMap>
+
+    <resultMap id="OpsReservationNightRecordMap" type="com.guesthouse.shared.db.reservation.model.OpsReservationNightRecord">
+        <id property="reservationNightId" column="reservation_night_id"/>
+        <result property="reservationId" column="reservation_id"/>
+        <result property="stayDate" column="stay_date"/>
+        <result property="assignedRoomId" column="assigned_room_id"/>
+        <result property="assignedRoomCode" column="assigned_room_code"/>
+        <result property="assignedRoomTypeId" column="assigned_room_type_id"/>
+        <result property="assignedRoomTypeName" column="assigned_room_type_name"/>
+    </resultMap>
+
+    <resultMap id="OpsReservationStatusHistoryRecordMap" type="com.guesthouse.shared.db.reservation.model.OpsReservationStatusHistoryRecord">
+        <id property="historyId" column="history_id"/>
+        <result property="fromStatus" column="from_status"/>
+        <result property="toStatus" column="to_status"/>
+        <result property="actionType" column="action_type"/>
+        <result property="changedByUserId" column="changed_by_user_id"/>
+        <result property="changedByLoginId" column="changed_by_login_id"/>
+        <result property="changedByName" column="changed_by_name"/>
+        <result property="reasonType" column="reason_type"/>
+        <result property="reasonText" column="reason_text"/>
+        <result property="changedAt" column="changed_at"/>
+    </resultMap>
+
+    <resultMap id="OpsReservationBlockContextRecordMap" type="com.guesthouse.shared.db.reservation.model.OpsReservationBlockContextRecord">
+        <id property="blockId" column="block_id"/>
+        <result property="roomId" column="room_id"/>
+        <result property="roomCode" column="room_code"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="reasonType" column="reason_type"/>
+        <result property="reasonText" column="reason_text"/>
+    </resultMap>
+
+    <resultMap id="ActivePricePolicyRecordMap" type="com.guesthouse.shared.db.reservation.model.ActivePricePolicyRecord">
+        <id property="policyId" column="policy_id"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="policyName" column="policy_name"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="deltaAmount" column="delta_amount"/>
+        <result property="dayOfWeekMask" column="day_of_week_mask"/>
+    </resultMap>
+
+    <resultMap id="OpsReservationMutationTargetRecordMap" type="com.guesthouse.shared.db.reservation.model.OpsReservationMutationTargetRecord">
+        <id property="reservationId" column="reservation_id"/>
+        <result property="reservationNo" column="reservation_no"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="hostUserId" column="host_user_id"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <select id="findActiveRoomTypeOptions" resultMap="ActiveRoomTypeOptionRecordMap">
+        SELECT
+            rt.accommodation_id,
+            a.name AS accommodation_name,
+            rt.room_type_id,
+            rt.name AS room_type_name,
+            rt.base_price
+        FROM room_types rt
+        JOIN accommodations a
+            ON a.accommodation_id = rt.accommodation_id
+        WHERE rt.status = 'ACTIVE'
+          AND a.status = 'ACTIVE'
+        ORDER BY a.name, rt.room_type_id
+    </select>
+
+    <select id="findAccommodationRoomInventoryByRegion" resultMap="AccommodationRoomInventoryRecordMap">
+        SELECT
+            a.accommodation_id,
+            a.name AS accommodation_name,
+            a.region,
+            a.address,
+            a.info_text,
+            a.check_in_time,
+            a.check_out_time,
+            rt.room_type_id,
+            rt.name AS room_type_name,
+            rt.base_capacity,
+            rt.max_capacity,
+            rt.base_price,
+            r.room_id
+        FROM accommodations a
+        JOIN room_types rt
+            ON rt.accommodation_id = a.accommodation_id
+        JOIN rooms r
+            ON r.room_type_id = rt.room_type_id
+        WHERE a.status = 'ACTIVE'
+          AND rt.status = 'ACTIVE'
+          AND r.status = 'ACTIVE'
+          AND (
+              #{region} IS NULL
+              OR #{region} = ''
+              OR a.region = #{region}
+          )
+        ORDER BY a.name, rt.room_type_id, r.room_id
+    </select>
+
+    <select id="findAccommodationRoomInventoryByAccommodationId" resultMap="AccommodationRoomInventoryRecordMap">
+        SELECT
+            a.accommodation_id,
+            a.name AS accommodation_name,
+            a.region,
+            a.address,
+            a.info_text,
+            a.check_in_time,
+            a.check_out_time,
+            rt.room_type_id,
+            rt.name AS room_type_name,
+            rt.base_capacity,
+            rt.max_capacity,
+            rt.base_price,
+            r.room_id
+        FROM accommodations a
+        JOIN room_types rt
+            ON rt.accommodation_id = a.accommodation_id
+        JOIN rooms r
+            ON r.room_type_id = rt.room_type_id
+        WHERE a.accommodation_id = #{accommodationId}
+          AND a.status = 'ACTIVE'
+          AND rt.status = 'ACTIVE'
+          AND r.status = 'ACTIVE'
+        ORDER BY rt.room_type_id, r.room_id
+    </select>
+
+    <select id="findActiveRoomsByAccommodationId" resultMap="ActiveRoomInventoryRecordMap">
+        SELECT
+            r.room_id,
+            r.accommodation_id,
+            r.room_code,
+            r.room_type_id,
+            rt.name AS room_type_name
+        FROM rooms r
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        JOIN accommodations a
+            ON a.accommodation_id = r.accommodation_id
+        WHERE r.accommodation_id = #{accommodationId}
+          AND r.status = 'ACTIVE'
+          AND rt.status = 'ACTIVE'
+          AND a.status = 'ACTIVE'
+        ORDER BY r.room_type_id, r.room_id
+    </select>
+
+    <select id="findActiveRoomBlocksByAccommodationIdsForDateRange" resultMap="AccommodationRoomBlockRecordMap">
+        SELECT
+            r.accommodation_id,
+            rb.room_id,
+            rb.start_date,
+            rb.end_date
+        FROM room_blocks rb
+        JOIN rooms r
+            ON r.room_id = rb.room_id
+        WHERE rb.status = 'ACTIVE'
+          AND rb.start_date &lt; #{endDate}
+          AND rb.end_date &gt;= #{startDate}
+          AND r.accommodation_id IN
+          <foreach collection="accommodationIds" item="accommodationId" open="(" separator="," close=")">
+              #{accommodationId}
+          </foreach>
+        ORDER BY r.accommodation_id, rb.room_id, rb.start_date, rb.end_date
+    </select>
+
+    <select id="findOccupiedRoomNightsByAccommodationIdsForDateRange" resultMap="AccommodationOccupiedRoomNightRecordMap">
+        SELECT
+            rv.accommodation_id,
+            rn.assigned_room_id AS room_id,
+            rn.stay_date
+        FROM reservation_nights rn
+        JOIN reservations rv
+            ON rv.reservation_id = rn.reservation_id
+        WHERE rv.accommodation_id IN
+          <foreach collection="accommodationIds" item="accommodationId" open="(" separator="," close=")">
+              #{accommodationId}
+          </foreach>
+          AND rn.stay_date &gt;= #{startDate}
+          AND rn.stay_date &lt; #{endDate}
+          AND rv.status IN ('PENDING', 'CONFIRMED')
+        ORDER BY rv.accommodation_id, rn.stay_date, rn.assigned_room_id
+    </select>
+
+    <select id="findReservationsByGuestUserId" resultMap="GuestReservationSummaryRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.accommodation_id,
+            a.name AS accommodation_name,
+            rv.room_type_id,
+            rt.name AS room_type_name,
+            rv.check_in_date,
+            rv.check_out_date,
+            rv.status,
+            rv.requested_at,
+            rv.confirmed_at,
+            rv.cancelled_at
+        FROM reservations rv
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        JOIN room_types rt
+            ON rt.room_type_id = rv.room_type_id
+        WHERE rv.guest_user_id = #{guestUserId}
+        ORDER BY rv.requested_at DESC, rv.reservation_id DESC
+    </select>
+
+    <select id="findReservationDetailByReservationIdAndGuestUserId" resultMap="GuestReservationDetailRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.accommodation_id,
+            a.name AS accommodation_name,
+            a.region AS accommodation_region,
+            a.address AS accommodation_address,
+            a.check_in_time AS accommodation_check_in_time,
+            rv.room_type_id,
+            rt.name AS room_type_name,
+            rv.check_in_date,
+            rv.check_out_date,
+            rv.status,
+            rv.requested_at,
+            rv.confirmed_at,
+            rv.cancelled_at
+        FROM reservations rv
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        JOIN room_types rt
+            ON rt.room_type_id = rv.room_type_id
+        WHERE rv.reservation_id = #{reservationId}
+          AND rv.guest_user_id = #{guestUserId}
+    </select>
+
+    <select id="lockReservationCancellationTargetByReservationIdAndGuestUserId" resultMap="GuestReservationCancellationTargetRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.status,
+            rv.check_in_date,
+            a.check_in_time
+        FROM reservations rv
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        WHERE rv.reservation_id = #{reservationId}
+          AND rv.guest_user_id = #{guestUserId}
+        FOR UPDATE
+    </select>
+
+    <select id="findReservationNightsByReservationId" resultMap="GuestReservationNightRecordMap">
+        SELECT
+            rn.reservation_night_id,
+            rn.stay_date
+        FROM reservation_nights rn
+        WHERE rn.reservation_id = #{reservationId}
+        ORDER BY rn.stay_date ASC, rn.reservation_night_id ASC
+    </select>
+
+    <select id="findReservationStatusHistoryByReservationId" resultMap="GuestReservationStatusHistoryRecordMap">
+        SELECT
+            rsh.history_id,
+            rsh.from_status,
+            rsh.to_status,
+            rsh.action_type,
+            rsh.reason_type,
+            rsh.reason_text,
+            rsh.changed_at
+        FROM reservation_status_history rsh
+        WHERE rsh.reservation_id = #{reservationId}
+        ORDER BY rsh.changed_at ASC, rsh.history_id ASC
+    </select>
+
+    <select id="findPendingReservationsByHostUserId" resultMap="PendingReservationSummaryRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.guest_user_id,
+            u.login_id AS guest_login_id,
+            u.name AS guest_name,
+            rv.accommodation_id,
+            a.name AS accommodation_name,
+            rv.room_type_id,
+            rt.name AS room_type_name,
+            rv.check_in_date,
+            rv.check_out_date,
+            rv.status,
+            rv.requested_at
+        FROM reservations rv
+        JOIN users u
+            ON u.user_id = rv.guest_user_id
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        JOIN room_types rt
+            ON rt.room_type_id = rv.room_type_id
+        WHERE rv.status = 'PENDING'
+          AND a.host_user_id = #{hostUserId}
+        ORDER BY rv.requested_at ASC, rv.reservation_id ASC
+    </select>
+
+    <select id="findOpsReservations" resultMap="OpsReservationListRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.guest_user_id,
+            u.login_id AS guest_login_id,
+            u.name AS guest_name,
+            rv.accommodation_id,
+            a.name AS accommodation_name,
+            rv.room_type_id,
+            rt.name AS room_type_name,
+            rv.check_in_date,
+            rv.check_out_date,
+            rv.status,
+            rv.requested_at,
+            rv.confirmed_at,
+            rv.cancelled_at,
+            CASE
+                WHEN rv.status IN ('PENDING', 'CONFIRMED') AND EXISTS (
+                    SELECT 1
+                    FROM reservation_nights rn
+                    WHERE rn.reservation_id = rv.reservation_id
+                      AND rn.stay_date &gt;= #{currentDate}
+                ) THEN TRUE
+                ELSE FALSE
+            END AS reassignment_possible,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM room_blocks rb
+                    JOIN rooms br
+                        ON br.room_id = rb.room_id
+                    WHERE br.accommodation_id = rv.accommodation_id
+                      AND rb.status = 'ACTIVE'
+                      AND rb.start_date &lt; rv.check_out_date
+                      AND rb.end_date &gt;= rv.check_in_date
+                ) THEN TRUE
+                ELSE FALSE
+            END AS has_relevant_blocks,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM price_policies pp
+                    WHERE pp.accommodation_id = rv.accommodation_id
+                      AND pp.room_type_id = rv.room_type_id
+                      AND pp.status = 'ACTIVE'
+                      AND pp.start_date &lt; rv.check_out_date
+                      AND pp.end_date &gt;= rv.check_in_date
+                ) THEN TRUE
+                ELSE FALSE
+            END AS has_relevant_pricing
+        FROM reservations rv
+        JOIN users u
+            ON u.user_id = rv.guest_user_id
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        JOIN room_types rt
+            ON rt.room_type_id = rv.room_type_id
+        WHERE rv.status IN ('PENDING', 'CONFIRMED', 'CANCELLED')
+          AND (#{isAdmin} = TRUE OR a.host_user_id = #{hostUserId})
+          AND (
+              #{status} IS NULL
+              OR rv.status = #{status}
+          )
+        ORDER BY rv.requested_at DESC, rv.reservation_id DESC
+    </select>
+
+    <select id="findOpsReservationDetailByReservationId" resultMap="OpsReservationDetailRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.guest_user_id,
+            u.login_id AS guest_login_id,
+            u.name AS guest_name,
+            rv.accommodation_id,
+            a.name AS accommodation_name,
+            a.region AS accommodation_region,
+            a.address AS accommodation_address,
+            a.check_in_time AS accommodation_check_in_time,
+            a.check_out_time AS accommodation_check_out_time,
+            rv.room_type_id,
+            rt.name AS room_type_name,
+            a.host_user_id,
+            rv.check_in_date,
+            rv.check_out_date,
+            rv.status,
+            rv.requested_at,
+            rv.confirmed_at,
+            rv.cancelled_at
+        FROM reservations rv
+        JOIN users u
+            ON u.user_id = rv.guest_user_id
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        JOIN room_types rt
+            ON rt.room_type_id = rv.room_type_id
+        WHERE rv.reservation_id = #{reservationId}
+    </select>
+
+    <select id="findOpsReservationNightsByReservationIds" resultMap="OpsReservationNightRecordMap">
+        SELECT
+            rn.reservation_night_id,
+            rn.reservation_id,
+            rn.stay_date,
+            rn.assigned_room_id,
+            r.room_code AS assigned_room_code,
+            r.room_type_id AS assigned_room_type_id,
+            rt.name AS assigned_room_type_name
+        FROM reservation_nights rn
+        JOIN rooms r
+            ON r.room_id = rn.assigned_room_id
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        WHERE rn.reservation_id IN
+        <foreach collection="reservationIds" item="reservationId" open="(" separator="," close=")">
+            #{reservationId}
+        </foreach>
+        ORDER BY rn.reservation_id ASC, rn.stay_date ASC, rn.reservation_night_id ASC
+    </select>
+
+    <select id="findOpsReservationStatusHistoryByReservationId" resultMap="OpsReservationStatusHistoryRecordMap">
+        SELECT
+            rsh.history_id,
+            rsh.from_status,
+            rsh.to_status,
+            rsh.action_type,
+            rsh.changed_by_user_id,
+            u.login_id AS changed_by_login_id,
+            u.name AS changed_by_name,
+            rsh.reason_type,
+            rsh.reason_text,
+            rsh.changed_at
+        FROM reservation_status_history rsh
+        JOIN users u
+            ON u.user_id = rsh.changed_by_user_id
+        WHERE rsh.reservation_id = #{reservationId}
+        ORDER BY rsh.changed_at ASC, rsh.history_id ASC
+    </select>
+
+    <select id="findActiveRoomBlockContextsByAccommodationIdForDateRange" resultMap="OpsReservationBlockContextRecordMap">
+        SELECT
+            rb.block_id,
+            rb.room_id,
+            r.room_code,
+            r.room_type_id,
+            rt.name AS room_type_name,
+            rb.start_date,
+            rb.end_date,
+            rb.reason_type,
+            rb.reason_text
+        FROM room_blocks rb
+        JOIN rooms r
+            ON r.room_id = rb.room_id
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        WHERE r.accommodation_id = #{accommodationId}
+          AND rb.status = 'ACTIVE'
+          AND rb.start_date &lt; #{endDate}
+          AND rb.end_date &gt;= #{startDate}
+        ORDER BY rb.start_date ASC, rb.block_id ASC
+    </select>
+
+    <select id="findActivePricePoliciesByRoomTypeIdForDateRange" resultMap="ActivePricePolicyRecordMap">
+        SELECT
+            pp.policy_id,
+            pp.room_type_id,
+            rt.name AS room_type_name,
+            pp.policy_name,
+            pp.start_date,
+            pp.end_date,
+            pp.delta_amount,
+            pp.day_of_week_mask
+        FROM price_policies pp
+        JOIN room_types rt
+            ON rt.room_type_id = pp.room_type_id
+        WHERE pp.accommodation_id = #{accommodationId}
+          AND pp.room_type_id = #{roomTypeId}
+          AND pp.status = 'ACTIVE'
+          AND pp.start_date &lt; #{endDate}
+          AND pp.end_date &gt;= #{startDate}
+        ORDER BY pp.start_date ASC, pp.policy_id ASC
+    </select>
+
+    <select id="lockReservationDecisionTarget" resultMap="ReservationDecisionTargetRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.guest_user_id,
+            rv.accommodation_id,
+            rv.room_type_id,
+            a.host_user_id,
+            rv.status,
+            rv.requested_at
+        FROM reservations rv
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        WHERE rv.reservation_id = #{reservationId}
+        FOR UPDATE
+    </select>
+
+    <select id="lockOpsReservationMutationTarget" resultMap="OpsReservationMutationTargetRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.accommodation_id,
+            rv.room_type_id,
+            a.host_user_id,
+            rv.status
+        FROM reservations rv
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        WHERE rv.reservation_id = #{reservationId}
+        FOR UPDATE
+    </select>
+</mapper>

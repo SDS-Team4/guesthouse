@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.audit.mapper.AuditLogMapper">
+
+    <insert id="insertAuditLog">
+        INSERT INTO audit_logs (
+            actor_user_id,
+            target_type,
+            target_id,
+            action_type,
+            reason_type,
+            reason_text,
+            before_state_json,
+            after_state_json,
+            occurred_at
+        ) VALUES (
+            #{actorUserId},
+            #{targetType},
+            #{targetId},
+            #{actionType},
+            #{reasonType},
+            #{reasonText},
+            #{beforeStateJson},
+            #{afterStateJson},
+            #{occurredAt}
+        )
+    </insert>
+</mapper>

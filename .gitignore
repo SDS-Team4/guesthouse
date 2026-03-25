@@ -59,6 +59,8 @@ application-secret.yml
 application-secret.yaml
 application-prod.yml
 application-prod.yaml
+application.yaml
+application.yml
 
 ############################
 # Gradle

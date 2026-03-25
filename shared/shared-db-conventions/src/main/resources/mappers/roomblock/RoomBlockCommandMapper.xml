@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.roomblock.mapper.RoomBlockCommandMapper">
+
+    <insert id="insertRoomBlock" useGeneratedKeys="true" keyProperty="blockId">
+        INSERT INTO room_blocks (
+            room_id,
+            start_date,
+            end_date,
+            reason_type,
+            reason_text,
+            status,
+            created_by_user_id,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{roomId},
+            #{startDate},
+            #{endDate},
+            #{reasonType},
+            #{reasonText},
+            #{status},
+            #{createdByUserId},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="markRoomBlockInactive">
+        UPDATE room_blocks
+        SET
+            status = 'INACTIVE',
+            updated_at = #{updatedAt}
+        WHERE block_id = #{blockId}
+          AND status = 'ACTIVE'
+    </update>
+</mapper>

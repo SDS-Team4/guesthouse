@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.reservation.mapper.ReservationCommandMapper">
+
+    <insert id="insertReservation" useGeneratedKeys="true" keyProperty="reservationId">
+        INSERT INTO reservations (
+            reservation_no,
+            guest_user_id,
+            accommodation_id,
+            room_type_id,
+            check_in_date,
+            check_out_date,
+            status,
+            requested_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{reservationNo},
+            #{guestUserId},
+            #{accommodationId},
+            #{roomTypeId},
+            #{checkInDate},
+            #{checkOutDate},
+            #{status},
+            #{requestedAt},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <insert id="insertReservationNights">
+        INSERT INTO reservation_nights (
+            reservation_id,
+            stay_date,
+            assigned_room_id,
+            created_at,
+            updated_at
+        ) VALUES
+        <foreach collection="nights" item="night" separator=",">
+            (
+                #{night.reservationId},
+                #{night.stayDate},
+                #{night.assignedRoomId},
+                #{night.createdAt},
+                #{night.updatedAt}
+            )
+        </foreach>
+    </insert>
+
+    <insert id="insertReservationStatusHistory">
+        INSERT INTO reservation_status_history (
+            reservation_id,
+            from_status,
+            to_status,
+            action_type,
+            changed_by_user_id,
+            reason_type,
+            reason_text,
+            changed_at
+        ) VALUES (
+            #{reservationId},
+            #{fromStatus},
+            #{toStatus},
+            #{actionType},
+            #{changedByUserId},
+            #{reasonType},
+            #{reasonText},
+            #{changedAt}
+        )
+    </insert>
+
+    <update id="markReservationConfirmed">
+        UPDATE reservations
+        SET
+            status = 'CONFIRMED',
+            confirmed_at = #{confirmedAt},
+            updated_at = #{updatedAt}
+        WHERE reservation_id = #{reservationId}
+          AND status = 'PENDING'
+    </update>
+
+    <update id="markReservationCancelled">
+        UPDATE reservations
+        SET
+            status = 'CANCELLED',
+            cancelled_at = #{cancelledAt},
+            updated_at = #{updatedAt}
+        WHERE reservation_id = #{reservationId}
+          AND status = 'PENDING'
+    </update>
+
+    <update id="markReservationCancelledByGuest">
+        UPDATE reservations
+        SET
+            status = 'CANCELLED',
+            cancelled_at = #{cancelledAt},
+            updated_at = #{updatedAt}
+        WHERE reservation_id = #{reservationId}
+          AND status IN ('PENDING', 'CONFIRMED')
+    </update>
+
+    <update id="updateReservationNightAssignedRoom">
+        UPDATE reservation_nights
+        SET
+            assigned_room_id = #{assignedRoomId},
+            updated_at = #{updatedAt}
+        WHERE reservation_night_id = #{reservationNightId}
+    </update>
+
+    <update id="touchReservationUpdatedAt">
+        UPDATE reservations
+        SET updated_at = #{updatedAt}
+        WHERE reservation_id = #{reservationId}
+    </update>
+</mapper>

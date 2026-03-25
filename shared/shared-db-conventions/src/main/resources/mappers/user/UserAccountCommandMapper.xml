@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper">
+
+    <insert id="insertUser" useGeneratedKeys="true" keyProperty="userId">
+        INSERT INTO users (
+            login_id,
+            password_hash,
+            name,
+            email,
+            phone,
+            role,
+            status,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{loginId},
+            #{passwordHash},
+            #{name},
+            #{email},
+            #{phone},
+            #{role},
+            #{status},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="promoteUserToHost">
+        UPDATE users
+        SET
+            role = 'HOST',
+            updated_at = #{updatedAt}
+        WHERE user_id = #{userId}
+          AND role = #{expectedRole}
+          AND status = 'ACTIVE'
+    </update>
+</mapper>

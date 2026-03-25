@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper">
+
+    <resultMap id="UserAccountRecordMap" type="com.guesthouse.shared.db.user.model.UserAccountRecord">
+        <id property="userId" column="user_id"/>
+        <result property="loginId" column="login_id"/>
+        <result property="name" column="name"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="role" column="role"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="AdminUserListRecordMap" type="com.guesthouse.shared.db.user.model.AdminUserListRecord">
+        <id property="userId" column="user_id"/>
+        <result property="loginId" column="login_id"/>
+        <result property="name" column="name"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="role" column="role"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="failedLoginCount" column="failed_login_count"/>
+        <result property="lockedUntil" column="locked_until"/>
+        <result property="lastLoginAt" column="last_login_at"/>
+        <result property="latestHostRoleRequestStatus" column="latest_host_role_request_status"/>
+    </resultMap>
+
+    <resultMap id="AdminUserDetailRecordMap" type="com.guesthouse.shared.db.user.model.AdminUserDetailRecord">
+        <id property="userId" column="user_id"/>
+        <result property="loginId" column="login_id"/>
+        <result property="name" column="name"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="role" column="role"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="failedLoginCount" column="failed_login_count"/>
+        <result property="lastFailedAt" column="last_failed_at"/>
+        <result property="lockedUntil" column="locked_until"/>
+        <result property="lastLoginAt" column="last_login_at"/>
+        <result property="passwordChangedAt" column="password_changed_at"/>
+    </resultMap>
+
+    <select id="findUserIdByLoginId" resultType="long">
+        SELECT u.user_id
+        FROM users u
+        WHERE u.login_id = #{loginId}
+        LIMIT 1
+    </select>
+
+    <select id="findUserIdByEmail" resultType="long">
+        SELECT u.user_id
+        FROM users u
+        WHERE #{email} IS NOT NULL
+          AND u.email = #{email}
+        LIMIT 1
+    </select>
+
+    <select id="findUserIdByPhone" resultType="long">
+        SELECT u.user_id
+        FROM users u
+        WHERE #{phone} IS NOT NULL
+          AND u.phone = #{phone}
+        LIMIT 1
+    </select>
+
+    <select id="findUserAccountByUserId" resultMap="UserAccountRecordMap">
+        SELECT
+            u.user_id,
+            u.login_id,
+            u.name,
+            u.email,
+            u.phone,
+            u.role,
+            u.status
+        FROM users u
+        WHERE u.user_id = #{userId}
+    </select>
+
+    <select id="findUsersForAdminList" resultMap="AdminUserListRecordMap">
+        SELECT
+            u.user_id,
+            u.login_id,
+            u.name,
+            u.email,
+            u.phone,
+            u.role,
+            u.status,
+            u.created_at,
+            COALESCE(s.failed_login_count, 0) AS failed_login_count,
+            s.locked_until,
+            s.last_login_at,
+            (
+                SELECT hrr.status
+                FROM host_role_requests hrr
+                WHERE hrr.user_id = u.user_id
+                ORDER BY hrr.request_id DESC
+                LIMIT 1
+            ) AS latest_host_role_request_status
+        FROM users u
+        LEFT JOIN user_login_security s
+            ON s.user_id = u.user_id
+        ORDER BY u.created_at DESC, u.user_id DESC
+    </select>
+
+    <select id="findAdminUserDetailByUserId" resultMap="AdminUserDetailRecordMap">
+        SELECT
+            u.user_id,
+            u.login_id,
+            u.name,
+            u.email,
+            u.phone,
+            u.role,
+            u.status,
+            u.created_at,
+            u.updated_at,
+            COALESCE(s.failed_login_count, 0) AS failed_login_count,
+            s.last_failed_at,
+            s.locked_until,
+            s.last_login_at,
+            s.password_changed_at
+        FROM users u
+        LEFT JOIN user_login_security s
+            ON s.user_id = u.user_id
+        WHERE u.user_id = #{userId}
+    </select>
+</mapper>

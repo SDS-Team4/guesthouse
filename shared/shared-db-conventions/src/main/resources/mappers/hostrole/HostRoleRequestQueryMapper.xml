@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.hostrole.mapper.HostRoleRequestQueryMapper">
+
+    <resultMap id="HostRoleRequestRecordMap" type="com.guesthouse.shared.db.hostrole.model.HostRoleRequestRecord">
+        <id property="requestId" column="request_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userLoginId" column="user_login_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="userEmail" column="user_email"/>
+        <result property="userPhone" column="user_phone"/>
+        <result property="userRole" column="user_role"/>
+        <result property="userStatus" column="user_status"/>
+        <result property="requestReason" column="request_reason"/>
+        <result property="status" column="status"/>
+        <result property="reviewedByUserId" column="reviewed_by_user_id"/>
+        <result property="reviewedByLoginId" column="reviewed_by_login_id"/>
+        <result property="reviewedByName" column="reviewed_by_name"/>
+        <result property="reviewReason" column="review_reason"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="reviewedAt" column="reviewed_at"/>
+    </resultMap>
+
+    <sql id="HostRoleRequestSelectColumns">
+        hrr.request_id,
+        hrr.user_id,
+        requester.login_id AS user_login_id,
+        requester.name AS user_name,
+        requester.email AS user_email,
+        requester.phone AS user_phone,
+        requester.role AS user_role,
+        requester.status AS user_status,
+        hrr.request_reason,
+        hrr.status,
+        hrr.reviewed_by AS reviewed_by_user_id,
+        reviewer.login_id AS reviewed_by_login_id,
+        reviewer.name AS reviewed_by_name,
+        hrr.review_reason,
+        hrr.created_at,
+        hrr.updated_at,
+        hrr.reviewed_at
+    </sql>
+
+    <select id="findLatestRequestByUserId" resultMap="HostRoleRequestRecordMap">
+        SELECT
+            <include refid="HostRoleRequestSelectColumns"/>
+        FROM host_role_requests hrr
+        JOIN users requester
+            ON requester.user_id = hrr.user_id
+        LEFT JOIN users reviewer
+            ON reviewer.user_id = hrr.reviewed_by
+        WHERE hrr.user_id = #{userId}
+        ORDER BY hrr.request_id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findPendingRequestByUserId" resultMap="HostRoleRequestRecordMap">
+        SELECT
+            <include refid="HostRoleRequestSelectColumns"/>
+        FROM host_role_requests hrr
+        JOIN users requester
+            ON requester.user_id = hrr.user_id
+        LEFT JOIN users reviewer
+            ON reviewer.user_id = hrr.reviewed_by
+        WHERE hrr.user_id = #{userId}
+          AND hrr.status = 'PENDING'
+        ORDER BY hrr.request_id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findApprovedRequestIdByUserId" resultType="long">
+        SELECT hrr.request_id
+        FROM host_role_requests hrr
+        WHERE hrr.user_id = #{userId}
+          AND hrr.status = 'APPROVED'
+        ORDER BY hrr.request_id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findRequestsForAdmin" resultMap="HostRoleRequestRecordMap">
+        SELECT
+            <include refid="HostRoleRequestSelectColumns"/>
+        FROM host_role_requests hrr
+        JOIN users requester
+            ON requester.user_id = hrr.user_id
+        LEFT JOIN users reviewer
+            ON reviewer.user_id = hrr.reviewed_by
+        WHERE (
+            #{status} IS NULL
+            OR hrr.status = #{status}
+        )
+        ORDER BY
+            CASE WHEN hrr.status = 'PENDING' THEN 0 ELSE 1 END,
+            hrr.created_at DESC,
+            hrr.request_id DESC
+    </select>
+
+    <select id="findRequestById" resultMap="HostRoleRequestRecordMap">
+        SELECT
+            <include refid="HostRoleRequestSelectColumns"/>
+        FROM host_role_requests hrr
+        JOIN users requester
+            ON requester.user_id = hrr.user_id
+        LEFT JOIN users reviewer
+            ON reviewer.user_id = hrr.reviewed_by
+        WHERE hrr.request_id = #{requestId}
+    </select>
+
+    <select id="lockRequestById" resultMap="HostRoleRequestRecordMap">
+        SELECT
+            <include refid="HostRoleRequestSelectColumns"/>
+        FROM host_role_requests hrr
+        JOIN users requester
+            ON requester.user_id = hrr.user_id
+        LEFT JOIN users reviewer
+            ON reviewer.user_id = hrr.reviewed_by
+        WHERE hrr.request_id = #{requestId}
+        FOR UPDATE
+    </select>
+</mapper>

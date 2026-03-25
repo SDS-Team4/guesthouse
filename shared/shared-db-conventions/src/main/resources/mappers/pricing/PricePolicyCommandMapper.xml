@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.pricing.mapper.PricePolicyCommandMapper">
+
+    <insert id="insertPricePolicy" useGeneratedKeys="true" keyProperty="policyId">
+        INSERT INTO price_policies (
+            accommodation_id,
+            room_type_id,
+            policy_name,
+            start_date,
+            end_date,
+            delta_amount,
+            day_of_week_mask,
+            status,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{accommodationId},
+            #{roomTypeId},
+            #{policyName},
+            #{startDate},
+            #{endDate},
+            #{deltaAmount},
+            #{dayOfWeekMask},
+            #{status},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="markPricePolicyInactive">
+        UPDATE price_policies
+        SET
+            status = 'INACTIVE',
+            updated_at = #{updatedAt}
+        WHERE policy_id = #{policyId}
+          AND status = 'ACTIVE'
+    </update>
+</mapper>
