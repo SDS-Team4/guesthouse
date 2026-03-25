@@ -17,6 +17,8 @@ import com.guesthouse.shared.db.roomblock.mapper.RoomBlockQueryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationCommandMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationInventoryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
+import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
 import com.guesthouse.shared.db.hostrole.mapper.HostRoleRequestCommandMapper;
@@ -93,6 +95,12 @@ class GuestAuthControllerWebTest {
 
     @MockBean
     private UserAccountCommandMapper userAccountCommandMapper;
+
+    @MockBean
+    private TermQueryMapper termQueryMapper;
+
+    @MockBean
+    private UserTermAgreementCommandMapper userTermAgreementCommandMapper;
 
     @MockBean
     private HostRoleRequestQueryMapper hostRoleRequestQueryMapper;
@@ -172,9 +180,11 @@ class GuestAuthControllerWebTest {
                                 .content(objectMapper.writeValueAsString(new SignupRequest(
                                         "new.guest",
                                         "guestpass123!",
+                                        "guestpass123!",
                                         "New Guest",
                                         "new.guest@example.com",
-                                        "010-1234-5678"
+                                        "010-1234-5678",
+                                        java.util.List.of(1301L, 1302L)
                                 )))
                 )
                 .andExpect(status().isOk())

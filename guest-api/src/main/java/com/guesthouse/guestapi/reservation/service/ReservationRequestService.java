@@ -54,11 +54,18 @@ public class ReservationRequestService {
 
     @Transactional
     public CreateReservationResult createReservation(CreateReservationCommand command) {
-        validateStayDateRules(command.checkInDate(), command.checkOutDate());
+        validateStayDateRules(command.checkInDate(), command.checkOutDate(), command.guestCount());
 
         LockedRoomTypeRecord lockedRoomType = reservationInventoryMapper.lockActiveRoomType(command.roomTypeId());
         if (lockedRoomType == null) {
             throw new AppException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "Room type not found.");
+        }
+        if (command.guestCount() > lockedRoomType.getMaxCapacity()) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.BAD_REQUEST,
+                    "Guest count exceeds the room type capacity."
+            );
         }
 
         List<Long> lockedRoomIds = reservationInventoryMapper.lockActiveRoomIdsByRoomType(command.roomTypeId());
@@ -111,8 +118,15 @@ public class ReservationRequestService {
         );
     }
 
-    private void validateStayDateRules(LocalDate checkInDate, LocalDate checkOutDate) {
+    private void validateStayDateRules(LocalDate checkInDate, LocalDate checkOutDate, int guestCount) {
         LocalDate today = LocalDate.now(clock);
+        if (guestCount <= 0) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.BAD_REQUEST,
+                    "Guest count must be positive."
+            );
+        }
         if (!checkInDate.isBefore(checkOutDate)) {
             throw new AppException(
                     ErrorCode.INVALID_REQUEST,
@@ -209,6 +223,7 @@ public class ReservationRequestService {
         reservationInsertParam.setGuestUserId(command.guestUserId());
         reservationInsertParam.setAccommodationId(lockedRoomType.getAccommodationId());
         reservationInsertParam.setRoomTypeId(command.roomTypeId());
+        reservationInsertParam.setGuestCount(command.guestCount());
         reservationInsertParam.setCheckInDate(command.checkInDate());
         reservationInsertParam.setCheckOutDate(command.checkOutDate());
         reservationInsertParam.setStatus(ReservationStatus.PENDING);

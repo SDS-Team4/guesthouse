@@ -16,6 +16,8 @@ import com.guesthouse.shared.db.reservation.mapper.ReservationCommandMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationInventoryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
 import com.guesthouse.shared.db.reservation.model.ActiveRoomTypeOptionRecord;
+import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
 import com.guesthouse.shared.domain.user.UserRole;
@@ -87,6 +89,12 @@ class GuestRoomTypeControllerWebTest {
 
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
+
+    @MockBean
+    private TermQueryMapper termQueryMapper;
+
+    @MockBean
+    private UserTermAgreementCommandMapper userTermAgreementCommandMapper;
 
     @Test
     void roomTypesReturnsActiveOptionsForAuthenticatedGuest() throws Exception {

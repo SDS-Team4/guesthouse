@@ -1,7 +1,7 @@
 # STATUS
 
 ## Current milestone
-- M1 partial account creation / host role request + M7 minimal admin user-management flow
+- Guest access/account alignment bundle: public browse before login, signup terms capture, guest self account management, and reservation `guest_count` persistence/exposure
 
 ## Decisions made
 - Search/detail availability stays read-only and does not allocate inventory before the existing reservation request endpoint is used.
@@ -20,6 +20,7 @@
 - Signup does not auto-login and does not yet write `user_term_agreements` in this slice.
 - Host role request remains a guest-authenticated request flow, with a single pending request allowed at a time and `DENIED` requests eligible for re-request.
 - Admin approval promotes `users.role` from `GUEST` to `HOST` without dual-role support, and role change is guaranteed on fresh login rather than by forced session invalidation.
+- Account recovery remains TBD and out of scope for the current alignment bundle.
 
 ## Completed
 - Guest accommodation search/detail/calendar read APIs added in `guest-api`.
@@ -55,12 +56,15 @@
 - `ops-web` now includes an admin-only user management and host-role-request review panel, while existing host reservation/block/pricing panels remain unchanged for host users.
 
 ## In progress
-- Manual browser smoke for signup -> guest login -> host role request -> admin review approve/reject -> fresh ops login with promoted host account.
-- Regression browser smoke for existing guest reservation lifecycle and existing ops reservation/block/pricing flows after the account/admin expansion.
+- Guest access/account alignment bundle implementation:
+  anonymous accommodation browse before login,
+  signup required-terms capture,
+  guest self profile/password management,
+  reservation `guest_count` persistence and guest/ops read-model exposure.
 
 ## Next
-- Run the guest/ops browser smoke with a newly created guest account and verify signup conflicts, host-role-request state transitions, admin approve/reject review, fresh ops login after approval, and DB audit rows.
-- After smoke validation, the next safe slice is the remaining M1 account-management gap excluding recovery, most likely minimal guest profile/password-change management or terms-agreement capture depending on the frozen SRS priority order.
+- Validate anonymous guest browse, reservation-entry auth gating, signup terms enforcement, guest profile/password change, and guest/ops reservation detail exposure of `guest_count`.
+- After this bundle, the next safest major bundle is host account and asset-management foundation, unless alignment validation shows admin governance should move earlier.
 
 ## Known issues
 - `guest-web` uses a single-page practical smoke UI rather than routed pages, so the read slice is functional but intentionally minimal.
@@ -68,4 +72,4 @@
 - The local workspace still reports a Node engine drift warning because the repo baseline wants Node `24.x` while the current machine is on `v20.11.1`, although the validated builds completed successfully in this pass.
 - Spring Boot test code still emits `@MockBean` deprecation warnings during Gradle test compilation.
 - Role promotion updates the database immediately, but existing sessions are not force-invalidated in this slice, so new host access should be verified with a fresh ops-web login.
-- Signup currently defers terms capture and account recovery by design for scope control in this milestone.
+- Account recovery still remains intentionally deferred.

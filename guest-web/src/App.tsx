@@ -14,6 +14,15 @@ type AuthenticatedUser = {
   role: 'GUEST';
 };
 
+type SignupTerm = {
+  termId: number;
+  category: string;
+  title: string;
+  content: string;
+  version: string;
+  effectiveAt: string;
+};
+
 type GuestSignupResponse = {
   userId: number;
   loginId: string;
@@ -42,6 +51,16 @@ type HostRoleRequestState = {
     createdAt: string;
     reviewedAt: string | null;
   } | null;
+};
+
+type GuestAccountProfile = {
+  userId: number;
+  loginId: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: 'GUEST';
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 };
 
 type AccommodationAvailabilityCategory = 'AVAILABLE' | 'CONDITION_MISMATCH' | 'SOLD_OUT';
@@ -104,6 +123,7 @@ type ReservationSummary = {
   accommodationName: string;
   roomTypeId: number;
   roomTypeName: string;
+  guestCount: number;
   checkInDate: string;
   checkOutDate: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
@@ -125,6 +145,7 @@ type ReservationDetail = {
     roomTypeId: number;
     roomTypeName: string;
   };
+  guestCount: number;
   checkInDate: string;
   checkOutDate: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
@@ -159,6 +180,7 @@ type ReservationCreateResponse = {
   reservationNo: string;
   accommodationId: number;
   roomTypeId: number;
+  guestCount: number;
   checkInDate: string;
   checkOutDate: string;
   status: 'PENDING';
@@ -187,9 +209,28 @@ type SearchFormState = {
 type SignupFormState = {
   loginId: string;
   password: string;
+  passwordConfirm: string;
   name: string;
   email: string;
   phone: string;
+  agreedTermIds: number[];
+};
+
+type AccountProfileFormState = {
+  name: string;
+  email: string;
+  phone: string;
+};
+
+type PasswordFormState = {
+  currentPassword: string;
+  newPassword: string;
+  newPasswordConfirm: string;
+};
+
+type ReservationIntent = {
+  accommodationId: number;
+  roomTypeId: number;
 };
 
 const currencyFormatter = new Intl.NumberFormat('ko-KR');
@@ -203,9 +244,23 @@ const defaultSearchForm: SearchFormState = {
 const defaultSignupForm: SignupFormState = {
   loginId: '',
   password: '',
+  passwordConfirm: '',
+  name: '',
+  email: '',
+  phone: '',
+  agreedTermIds: []
+};
+
+const defaultAccountProfileForm: AccountProfileFormState = {
   name: '',
   email: '',
   phone: ''
+};
+
+const defaultPasswordForm: PasswordFormState = {
+  currentPassword: '',
+  newPassword: '',
+  newPasswordConfirm: ''
 };
 
 function getBusinessTodayIsoDate() {
@@ -336,6 +391,7 @@ function App() {
   const [loginId, setLoginId] = useState('guest.demo');
   const [password, setPassword] = useState('guestpass123!');
   const [signupForm, setSignupForm] = useState<SignupFormState>(defaultSignupForm);
+  const [signupTerms, setSignupTerms] = useState<SignupTerm[]>([]);
   const [searchForm, setSearchForm] = useState<SearchFormState>(defaultSearchForm);
   const [searchResults, setSearchResults] = useState<AccommodationSearchResult[]>([]);
   const [selectedAccommodationId, setSelectedAccommodationId] = useState<number | null>(null);
@@ -345,7 +401,13 @@ function App() {
   const [selectedReservationId, setSelectedReservationId] = useState<number | null>(null);
   const [reservationDetail, setReservationDetail] = useState<ReservationDetail | null>(null);
   const [hostRoleRequestState, setHostRoleRequestState] = useState<HostRoleRequestState | null>(null);
+  const [accountProfile, setAccountProfile] = useState<GuestAccountProfile | null>(null);
+  const [accountProfileForm, setAccountProfileForm] =
+    useState<AccountProfileFormState>(defaultAccountProfileForm);
+  const [passwordForm, setPasswordForm] = useState<PasswordFormState>(defaultPasswordForm);
+  const [pendingReservationIntent, setPendingReservationIntent] = useState<ReservationIntent | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const [loadingSignupTerms, setLoadingSignupTerms] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -356,45 +418,84 @@ function App() {
   const [loadingHostRoleRequestState, setLoadingHostRoleRequestState] = useState(false);
   const [creatingHostRoleRequest, setCreatingHostRoleRequest] = useState(false);
   const [hostRoleRequestReason, setHostRoleRequestReason] = useState('');
+  const [loadingAccountProfile, setLoadingAccountProfile] = useState(false);
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [cancellingReservation, setCancellingReservation] = useState(false);
   const [creatingReservation, setCreatingReservation] = useState<number | null>(null);
 
+  const selectedRoomType =
+    accommodationDetail?.roomTypes.find((roomType) => roomType.roomTypeId === selectedRoomTypeId) ?? null;
+
   useEffect(() => {
-    void bootstrapSession();
+    void bootstrap();
   }, []);
 
-  async function bootstrapSession() {
+  async function bootstrap() {
     setInitializing(true);
     try {
-      const currentUser = await apiRequest<AuthenticatedUser>('/api/v1/auth/me', {
-        method: 'GET'
-      });
-      setUser(currentUser);
-      await Promise.all([loadReservations(false), loadSearchResults(false), loadHostRoleRequestState(false)]);
-    } catch (error) {
-      const apiError = error as Error & { status?: number };
-      if (apiError.status !== 401) {
-        setBanner({ tone: 'error', text: apiError.message });
+      await Promise.all([loadSignupTerms(false), loadSearchResults(false)]);
+      try {
+        const currentUser = await apiRequest<AuthenticatedUser>('/api/v1/auth/me', {
+          method: 'GET'
+        });
+        setUser(currentUser);
+        await loadAuthenticatedGuestState(false);
+      } catch (error) {
+        const apiError = error as Error & { status?: number };
+        if (apiError.status !== 401) {
+          setBanner({ tone: 'error', text: apiError.message });
+        }
+        clearAuthenticatedState();
       }
-      resetGuestState();
+    } catch (error) {
+      const apiError = error as Error;
+      setBanner({ tone: 'error', text: apiError.message });
     } finally {
       setInitializing(false);
     }
   }
 
-  function resetGuestState() {
+  function clearAuthenticatedState() {
     setUser(null);
     setReservations([]);
-    setSearchResults([]);
-    setSelectedAccommodationId(null);
-    setSelectedRoomTypeId(null);
-    setAccommodationDetail(null);
-    setCalendar(null);
     setSelectedReservationId(null);
     setReservationDetail(null);
     setHostRoleRequestState(null);
     setHostRoleRequestReason('');
+    setAccountProfile(null);
+    setAccountProfileForm(defaultAccountProfileForm);
+    setPasswordForm(defaultPasswordForm);
     setCancellingReservation(false);
+  }
+
+  function resetAfterLogout() {
+    clearAuthenticatedState();
+    setPendingReservationIntent(null);
+  }
+
+  async function loadAuthenticatedGuestState(showBanner = true) {
+    await Promise.all([loadReservations(false), loadHostRoleRequestState(false), loadAccountProfile(false)]);
+    if (showBanner) {
+      setBanner({ tone: 'info', text: 'Guest account data refreshed.' });
+    }
+  }
+
+  async function loadSignupTerms(showBanner = true) {
+    setLoadingSignupTerms(true);
+    try {
+      const terms = await apiRequest<SignupTerm[]>('/api/v1/auth/signup-terms', { method: 'GET' });
+      setSignupTerms(terms);
+      setSignupForm((current) => ({
+        ...current,
+        agreedTermIds: current.agreedTermIds.filter((termId) => terms.some((term) => term.termId === termId))
+      }));
+      if (showBanner) {
+        setBanner({ tone: 'info', text: 'Signup terms refreshed.' });
+      }
+    } finally {
+      setLoadingSignupTerms(false);
+    }
   }
 
   async function loadReservations(showBanner = true) {
@@ -444,6 +545,26 @@ function App() {
       }
     } finally {
       setLoadingHostRoleRequestState(false);
+    }
+  }
+
+  async function loadAccountProfile(showBanner = true) {
+    setLoadingAccountProfile(true);
+    try {
+      const profile = await apiRequest<GuestAccountProfile>('/api/v1/account/me', {
+        method: 'GET'
+      });
+      setAccountProfile(profile);
+      setAccountProfileForm({
+        name: profile.name,
+        email: profile.email ?? '',
+        phone: profile.phone ?? ''
+      });
+      if (showBanner) {
+        setBanner({ tone: 'info', text: 'Account profile refreshed.' });
+      }
+    } finally {
+      setLoadingAccountProfile(false);
     }
   }
 
@@ -544,11 +665,7 @@ function App() {
     }
   }
 
-  async function loadCalendar(
-    accommodationId: number,
-    roomTypeId: number,
-    showBanner = false
-  ) {
+  async function loadCalendar(accommodationId: number, roomTypeId: number, showBanner = false) {
     setLoadingCalendar(true);
     try {
       const params = new URLSearchParams({
@@ -585,8 +702,13 @@ function App() {
         body: JSON.stringify({ loginId, password })
       });
       setUser(loggedInUser);
-      await Promise.all([loadReservations(false), loadSearchResults(false), loadHostRoleRequestState(false)]);
-      setBanner({ tone: 'success', text: `Signed in as ${loggedInUser.loginId}.` });
+      await loadAuthenticatedGuestState(false);
+      setBanner({
+        tone: 'success',
+        text: pendingReservationIntent
+          ? `Signed in as ${loggedInUser.loginId}. Your reservation intent is preserved. Review the room type again and continue.`
+          : `Signed in as ${loggedInUser.loginId}.`
+      });
     } catch (error) {
       const apiError = error as Error;
       setBanner({ tone: 'error', text: apiError.message });
@@ -597,18 +719,34 @@ function App() {
 
   async function handleSignup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (signupForm.password !== signupForm.passwordConfirm) {
+      setBanner({ tone: 'error', text: 'Password confirmation does not match.' });
+      return;
+    }
+
+    const requiredTermIds = signupTerms.map((term) => term.termId);
+    const hasAllRequiredTerms = requiredTermIds.every((termId) => signupForm.agreedTermIds.includes(termId));
+    if (!hasAllRequiredTerms) {
+      setBanner({ tone: 'error', text: 'Agree to all required signup terms before creating the account.' });
+      return;
+    }
+
     setSigningUp(true);
     try {
       const created = await apiRequest<GuestSignupResponse>('/api/v1/auth/signup', {
         method: 'POST',
         body: JSON.stringify(signupForm)
       });
-      setSignupForm(defaultSignupForm);
+      setSignupForm({
+        ...defaultSignupForm,
+        agreedTermIds: requiredTermIds
+      });
       setLoginId(created.loginId);
       setPassword('');
       setBanner({
         tone: 'success',
-        text: `Account ${created.loginId} was created. Sign in to continue.`
+        text: `Account ${created.loginId} was created. Sign in to continue with browsing or reservation entry.`
       });
     } catch (error) {
       const apiError = error as Error;
@@ -624,8 +762,8 @@ function App() {
     } catch {
       // Session invalidation is best-effort during logout.
     }
-    resetGuestState();
-    setBanner({ tone: 'info', text: 'Signed out.' });
+    resetAfterLogout();
+    setBanner({ tone: 'info', text: 'Signed out. Public search is still available.' });
   }
 
   async function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
@@ -644,21 +782,43 @@ function App() {
   }
 
   async function handleReserve(roomTypeId: number) {
+    const validationMessage = validateSearchForm(searchForm);
+    if (validationMessage) {
+      setBanner({ tone: 'error', text: validationMessage });
+      return;
+    }
+
+    if (!user) {
+      if (selectedAccommodationId !== null) {
+        setPendingReservationIntent({
+          accommodationId: selectedAccommodationId,
+          roomTypeId
+        });
+      }
+      setBanner({
+        tone: 'info',
+        text: 'Search and detail browsing are public, but reservation entry requires login or signup.'
+      });
+      return;
+    }
+
     setCreatingReservation(roomTypeId);
     try {
       const created = await apiRequest<ReservationCreateResponse>('/api/v1/reservations', {
         method: 'POST',
         body: JSON.stringify({
           roomTypeId,
+          guestCount: Number(searchForm.guestCount),
           checkInDate: searchForm.checkInDate,
           checkOutDate: searchForm.checkOutDate
         })
       });
+      setPendingReservationIntent(null);
       await Promise.all([loadReservations(false), refreshSearchContext(selectedAccommodationId, roomTypeId)]);
       await loadReservationDetail(created.reservationId, false);
       setBanner({
         tone: 'success',
-        text: `Reservation ${created.reservationNo} was created in PENDING status.`
+        text: `Reservation ${created.reservationNo} was created in PENDING status for ${created.guestCount} guest(s).`
       });
     } catch (error) {
       const apiError = error as Error;
@@ -686,7 +846,7 @@ function App() {
       ]);
       setBanner({
         tone: 'success',
-        text: `Reservation ${cancelled.reservationNo} was cancelled successfully.`
+        text: `Reservation ${cancelled.reservationNo} is now ${cancelled.status}.`
       });
     } catch (error) {
       const apiError = error as Error;
@@ -696,18 +856,19 @@ function App() {
     }
   }
 
-  async function handleCreateHostRoleRequest() {
+  async function handleCreateHostRoleRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setCreatingHostRoleRequest(true);
     try {
-      const data = await apiRequest<HostRoleRequestState>('/api/v1/account/host-role-request', {
+      const updatedState = await apiRequest<HostRoleRequestState>('/api/v1/account/host-role-request', {
         method: 'POST',
         body: JSON.stringify({ requestReason: hostRoleRequestReason })
       });
-      setHostRoleRequestState(data);
+      setHostRoleRequestState(updatedState);
       setHostRoleRequestReason('');
       setBanner({
         tone: 'success',
-        text: 'Host role request was submitted for admin review.'
+        text: 'Host role request submitted. Approval takes effect on a fresh ops-web login.'
       });
     } catch (error) {
       const apiError = error as Error;
@@ -717,273 +878,501 @@ function App() {
     }
   }
 
-  const selectedRoomType =
-    accommodationDetail?.roomTypes.find((roomType) => roomType.roomTypeId === selectedRoomTypeId) ?? null;
+  async function handleProfileUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setUpdatingProfile(true);
+    try {
+      const updatedProfile = await apiRequest<GuestAccountProfile>('/api/v1/account/me', {
+        method: 'PATCH',
+        body: JSON.stringify(accountProfileForm)
+      });
+      setAccountProfile(updatedProfile);
+      setAccountProfileForm({
+        name: updatedProfile.name,
+        email: updatedProfile.email ?? '',
+        phone: updatedProfile.phone ?? ''
+      });
+      setUser((current) =>
+        current
+          ? {
+              ...current,
+              name: updatedProfile.name
+            }
+          : current
+      );
+      setBanner({ tone: 'success', text: 'Account profile updated.' });
+    } catch (error) {
+      const apiError = error as Error;
+      setBanner({ tone: 'error', text: apiError.message });
+    } finally {
+      setUpdatingProfile(false);
+    }
+  }
+
+  async function handlePasswordChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setChangingPassword(true);
+    try {
+      const result = await apiRequest<{ changed: boolean; changedAt: string }>('/api/v1/account/password', {
+        method: 'POST',
+        body: JSON.stringify(passwordForm)
+      });
+      setPasswordForm(defaultPasswordForm);
+      setBanner({
+        tone: 'success',
+        text: `Password updated at ${formatTimestamp(result.changedAt)}.`
+      });
+    } catch (error) {
+      const apiError = error as Error;
+      setBanner({ tone: 'error', text: apiError.message });
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
+  function toggleAgreedTerm(termId: number) {
+    setSignupForm((current) => ({
+      ...current,
+      agreedTermIds: current.agreedTermIds.includes(termId)
+        ? current.agreedTermIds.filter((value) => value !== termId)
+        : [...current.agreedTermIds, termId]
+    }));
+  }
 
   return (
     <div className="app-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">guest-web / M4 cancellation flow</p>
-          <h1>Search, request, inspect reservation detail, and cancel before cutoff</h1>
+          <p className="eyebrow">guest-web / guest access and account completion</p>
+          <h1>Browse publicly, authenticate at reservation entry, and manage the guest account baseline</h1>
           <p className="hero-copy">
-            This minimal guest UI now covers search/detail reads, reservation requests, guest
-            reservation detail, and guest cancellation before the effective check-in cutoff.
+            This bundle keeps the validated reservation core untouched while aligning the browser flow closer to the
+            frozen UI intent: public browse, authenticated booking, required signup terms, and guest-count-aware
+            reservation details.
           </p>
         </div>
         <div className="hero-meta">
-          <span>Search by region/date/headcount</span>
-          <span>PENDING + CONFIRMED consume inventory</span>
-          <span>Guest cancellation blocked at check-in time</span>
+          <span>{user ? `Signed in as ${user.loginId}` : 'Anonymous browse mode'}</span>
+          <span>{user ? 'Reservation write actions unlocked' : 'Login required to reserve'}</span>
+          <span>Business date {businessToday}</span>
         </div>
       </header>
 
       {banner ? <div className={`banner banner-${banner.tone}`}>{banner.text}</div> : null}
 
       {initializing ? (
-        <section className="panel">
-          <h2>Checking session</h2>
-          <p className="muted">Looking for an existing guest session.</p>
-        </section>
-      ) : null}
-
-      {!initializing && !user ? (
-        <section className="auth-grid">
-          <section className="panel narrow">
-            <h2>Guest login</h2>
-            <p className="muted">Seed account: guest.demo / guestpass123!</p>
-            <form className="stack" onSubmit={handleLogin}>
-              <label>
-                Login ID
-                <input value={loginId} onChange={(event) => setLoginId(event.target.value)} />
-              </label>
-              <label>
-                Password
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </label>
-              <button type="submit" disabled={loggingIn}>
-                {loggingIn ? 'Signing in...' : 'Sign in'}
-              </button>
-            </form>
-          </section>
-
-          <section className="panel narrow">
-            <h2>Guest signup</h2>
-            <p className="muted">Create a new guest account, then sign in with the new login ID.</p>
-            <form className="stack" onSubmit={handleSignup}>
-              <label>
-                Login ID
-                <input
-                  value={signupForm.loginId}
-                  onChange={(event) =>
-                    setSignupForm((current) => ({ ...current, loginId: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                Password
-                <input
-                  type="password"
-                  value={signupForm.password}
-                  onChange={(event) =>
-                    setSignupForm((current) => ({ ...current, password: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                Name
-                <input
-                  value={signupForm.name}
-                  onChange={(event) =>
-                    setSignupForm((current) => ({ ...current, name: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                Email
-                <input
-                  type="email"
-                  value={signupForm.email}
-                  onChange={(event) =>
-                    setSignupForm((current) => ({ ...current, email: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                Phone
-                <input
-                  value={signupForm.phone}
-                  onChange={(event) =>
-                    setSignupForm((current) => ({ ...current, phone: event.target.value }))
-                  }
-                />
-              </label>
-              <button type="submit" disabled={signingUp}>
-                {signingUp ? 'Creating account...' : 'Create account'}
-              </button>
-            </form>
-          </section>
-        </section>
-      ) : null}
-
-      {user ? (
         <main className="stack-layout">
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Current session</h2>
-                  <p className="muted">Authenticated guest context from the Redis-backed session.</p>
-              </div>
-              <button type="button" className="secondary-button" onClick={handleLogout}>
-                Sign out
-              </button>
-            </div>
-            <dl className="definition-list">
-              <div>
-                <dt>User ID</dt>
-                <dd>{user.userId}</dd>
-              </div>
-              <div>
-                <dt>Login ID</dt>
-                <dd>{user.loginId}</dd>
-              </div>
-              <div>
-                <dt>Name</dt>
-                <dd>{user.name}</dd>
-              </div>
-                <div>
-                  <dt>Role</dt>
-                  <dd>{user.role}</dd>
+          <section className="panel narrow">
+            <p className="empty-state">Loading public browse and session state...</p>
+          </section>
+        </main>
+      ) : (
+        <main className="stack-layout">
+          {!user ? (
+            <section className="auth-grid">
+              <section className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Sign in for reservation entry</h2>
+                    <p className="muted">
+                      Search, accommodation detail, and availability stay public. Reservation creation still requires an
+                      authenticated guest session.
+                    </p>
+                  </div>
                 </div>
-              </dl>
-            </section>
-
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Host role request</h2>
-                  <p className="muted">
-                    Submit a host-role request from the guest account, then wait for admin review in
-                    ops-web.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => void loadHostRoleRequestState(true)}
-                  disabled={loadingHostRoleRequestState}
-                >
-                  {loadingHostRoleRequestState ? 'Refreshing...' : 'Refresh request'}
-                </button>
-              </div>
-
-              <div className="host-role-request-grid">
-                <section className="detail-card">
-                  <h4>Current state</h4>
-                  <p className="detail-line">DB role: {hostRoleRequestState?.currentUserRole ?? user.role}</p>
-                  <p
-                    className={`cancellation-state ${
-                      hostRoleRequestState?.canSubmitNewRequest
-                        ? 'cancellation-state-allowed'
-                        : 'cancellation-state-blocked'
-                    }`}
-                  >
-                    {hostRoleRequestState?.canSubmitNewRequest
-                      ? 'A new host role request can be submitted.'
-                      : hostRoleRequestState?.blockedReason ?? 'Host role request is currently blocked.'}
-                  </p>
-                  <p className="muted">
-                    After approval, access should be rechecked with a fresh ops-web login because the
-                    current guest session may still hold the old role snapshot.
-                  </p>
-                </section>
-
-                <section className="detail-card">
-                  <h4>Submit request</h4>
+                {pendingReservationIntent ? (
+                  <div className="info-card">
+                    <strong>Saved booking intent</strong>
+                    <p className="detail-line">
+                      Accommodation {pendingReservationIntent.accommodationId}, room type {pendingReservationIntent.roomTypeId}
+                    </p>
+                    <p className="muted">Sign in first, then use the same room-type action to continue.</p>
+                  </div>
+                ) : null}
+                <form className="stack" onSubmit={handleLogin}>
                   <label>
-                    Request reason
-                    <textarea
-                      rows={4}
-                      value={hostRoleRequestReason}
-                      placeholder="Explain why this account needs host access."
-                      onChange={(event) => setHostRoleRequestReason(event.target.value)}
+                    Login ID
+                    <input value={loginId} onChange={(event) => setLoginId(event.target.value)} />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
                     />
                   </label>
+                  <button type="submit" disabled={loggingIn}>
+                    {loggingIn ? 'Signing in...' : 'Sign in'}
+                  </button>
+                </form>
+              </section>
+
+              <section className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Sign up</h2>
+                    <p className="muted">
+                      Required terms are captured at signup and stored as agreement snapshots in the current baseline.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => void handleCreateHostRoleRequest()}
-                    disabled={!hostRoleRequestState?.canSubmitNewRequest || creatingHostRoleRequest}
+                    className="secondary-button"
+                    onClick={() => void loadSignupTerms(true)}
+                    disabled={loadingSignupTerms}
                   >
-                    {creatingHostRoleRequest ? 'Submitting...' : 'Request host role'}
+                    {loadingSignupTerms ? 'Refreshing...' : 'Refresh terms'}
                   </button>
-                </section>
+                </div>
+                <form className="stack" onSubmit={handleSignup}>
+                  <label>
+                    Login ID
+                    <input
+                      value={signupForm.loginId}
+                      onChange={(event) =>
+                        setSignupForm((current) => ({ ...current, loginId: event.target.value }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      value={signupForm.password}
+                      onChange={(event) =>
+                        setSignupForm((current) => ({ ...current, password: event.target.value }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Confirm password
+                    <input
+                      type="password"
+                      value={signupForm.passwordConfirm}
+                      onChange={(event) =>
+                        setSignupForm((current) => ({ ...current, passwordConfirm: event.target.value }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Name
+                    <input
+                      value={signupForm.name}
+                      onChange={(event) =>
+                        setSignupForm((current) => ({ ...current, name: event.target.value }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      value={signupForm.email}
+                      onChange={(event) =>
+                        setSignupForm((current) => ({ ...current, email: event.target.value }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Phone
+                    <input
+                      value={signupForm.phone}
+                      onChange={(event) =>
+                        setSignupForm((current) => ({ ...current, phone: event.target.value }))
+                      }
+                    />
+                  </label>
 
-                <section className="detail-card detail-card-wide">
-                  <h4>Latest request</h4>
-                  {!hostRoleRequestState?.latestRequest ? (
-                    <p className="empty-state">No host role request has been recorded for this account yet.</p>
-                  ) : (
-                    <div className="history-list">
-                      <article className="history-item">
-                        <div className="history-header">
-                          <strong>
-                            {formatHostRoleRequestStatus(hostRoleRequestState.latestRequest.status)}
-                          </strong>
-                          <span>{formatTimestamp(hostRoleRequestState.latestRequest.createdAt)}</span>
-                        </div>
-                        <p className="detail-line">{hostRoleRequestState.latestRequest.requestReason}</p>
-                        {hostRoleRequestState.latestRequest.reviewedAt ? (
-                          <p className="detail-line">
-                            Reviewed at {formatTimestamp(hostRoleRequestState.latestRequest.reviewedAt)}
-                          </p>
-                        ) : null}
-                        {hostRoleRequestState.latestRequest.reviewedByLoginId ? (
-                          <p className="detail-line">
-                            Reviewer {hostRoleRequestState.latestRequest.reviewedByName} (
-                            {hostRoleRequestState.latestRequest.reviewedByLoginId})
-                          </p>
-                        ) : null}
-                        {hostRoleRequestState.latestRequest.reviewReason ? (
-                          <p className="detail-line history-reason">
-                            {hostRoleRequestState.latestRequest.reviewReason}
-                          </p>
-                        ) : null}
-                      </article>
+                  <div className="terms-list">
+                    <strong>Required terms</strong>
+                    {signupTerms.length === 0 ? (
+                      <p className="empty-state">No published required terms are currently available.</p>
+                    ) : (
+                      signupTerms.map((term) => (
+                        <label key={term.termId} className="checkbox-card">
+                          <input
+                            type="checkbox"
+                            checked={signupForm.agreedTermIds.includes(term.termId)}
+                            onChange={() => toggleAgreedTerm(term.termId)}
+                          />
+                          <div>
+                            <strong>
+                              {term.title} ({term.version})
+                            </strong>
+                            <p className="detail-line">
+                              Effective {formatTimestamp(term.effectiveAt)} / {term.category}
+                            </p>
+                            <p className="muted">{term.content}</p>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+
+                  <button type="submit" disabled={signingUp || loadingSignupTerms}>
+                    {signingUp ? 'Creating account...' : 'Create guest account'}
+                  </button>
+                </form>
+              </section>
+            </section>
+          ) : (
+            <section className="stack-layout">
+              <section className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Guest session</h2>
+                    <p className="muted">
+                      Reservation write actions are available in this session. Public browse remains available after
+                      logout.
+                    </p>
+                  </div>
+                  <button type="button" className="secondary-button" onClick={() => void handleLogout()}>
+                    Sign out
+                  </button>
+                </div>
+                <div className="definition-list">
+                  <div>
+                    <dt>Login ID</dt>
+                    <dd>{user.loginId}</dd>
+                  </div>
+                  <div>
+                    <dt>Name</dt>
+                    <dd>{user.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Role</dt>
+                    <dd>{user.role}</dd>
+                  </div>
+                  <div>
+                    <dt>Reservation entry</dt>
+                    <dd>Unlocked</dd>
+                  </div>
+                </div>
+              </section>
+
+              <section className="account-grid">
+                <section className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <h2>Account profile</h2>
+                      <p className="muted">Minimal self-service profile update for the current guest account.</p>
                     </div>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => void loadAccountProfile(true)}
+                      disabled={loadingAccountProfile}
+                    >
+                      {loadingAccountProfile ? 'Refreshing...' : 'Refresh profile'}
+                    </button>
+                  </div>
+                  {accountProfile ? (
+                    <form className="stack" onSubmit={handleProfileUpdate}>
+                      <label>
+                        Name
+                        <input
+                          value={accountProfileForm.name}
+                          onChange={(event) =>
+                            setAccountProfileForm((current) => ({ ...current, name: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Email
+                        <input
+                          type="email"
+                          value={accountProfileForm.email}
+                          onChange={(event) =>
+                            setAccountProfileForm((current) => ({ ...current, email: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Phone
+                        <input
+                          value={accountProfileForm.phone}
+                          onChange={(event) =>
+                            setAccountProfileForm((current) => ({ ...current, phone: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <div className="definition-list compact-definition-list">
+                        <div>
+                          <dt>Login ID</dt>
+                          <dd>{accountProfile.loginId}</dd>
+                        </div>
+                        <div>
+                          <dt>Status</dt>
+                          <dd>{accountProfile.status}</dd>
+                        </div>
+                      </div>
+                      <button type="submit" disabled={updatingProfile}>
+                        {updatingProfile ? 'Saving...' : 'Save profile'}
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="empty-state">Profile data is not loaded yet.</p>
                   )}
                 </section>
-              </div>
-            </section>
 
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Search stays</h2>
+                <section className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <h2>Change password</h2>
+                      <p className="muted">Current-password verification is required. Recovery remains out of scope.</p>
+                    </div>
+                  </div>
+                  <form className="stack" onSubmit={handlePasswordChange}>
+                    <label>
+                      Current password
+                      <input
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(event) =>
+                          setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      New password
+                      <input
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(event) =>
+                          setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      Confirm new password
+                      <input
+                        type="password"
+                        value={passwordForm.newPasswordConfirm}
+                        onChange={(event) =>
+                          setPasswordForm((current) => ({
+                            ...current,
+                            newPasswordConfirm: event.target.value
+                          }))
+                        }
+                      />
+                    </label>
+                    <button type="submit" disabled={changingPassword}>
+                      {changingPassword ? 'Changing...' : 'Change password'}
+                    </button>
+                  </form>
+                </section>
+              </section>
+
+              <section className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Host role request</h2>
+                    <p className="muted">
+                      Guests can request host access here. Approval takes effect on a fresh ops-web login.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void loadHostRoleRequestState(true)}
+                    disabled={loadingHostRoleRequestState}
+                  >
+                    {loadingHostRoleRequestState ? 'Refreshing...' : 'Refresh request status'}
+                  </button>
+                </div>
+
+                {!hostRoleRequestState ? (
+                  <p className="empty-state">No request state loaded yet.</p>
+                ) : (
+                  <div className="host-role-request-grid">
+                    <section className="detail-card">
+                      <h3>Current state</h3>
+                      <p className="detail-line">Current role: {hostRoleRequestState.currentUserRole}</p>
+                      <p className="detail-line">
+                        {hostRoleRequestState.canSubmitNewRequest
+                          ? 'A new request can be submitted.'
+                          : hostRoleRequestState.blockedReason ?? 'A new request is currently blocked.'}
+                      </p>
+                    </section>
+
+                    <section className="detail-card">
+                      <h3>Latest request</h3>
+                      {!hostRoleRequestState.latestRequest ? (
+                        <p className="empty-state">No host role request recorded yet.</p>
+                      ) : (
+                        <>
+                          <p className="detail-line">
+                            <strong>{formatHostRoleRequestStatus(hostRoleRequestState.latestRequest.status)}</strong>
+                          </p>
+                          <p className="detail-line">{hostRoleRequestState.latestRequest.requestReason}</p>
+                          <p className="detail-line">
+                            Created {formatTimestamp(hostRoleRequestState.latestRequest.createdAt)}
+                          </p>
+                          <p className="detail-line">
+                            Reviewed {formatTimestamp(hostRoleRequestState.latestRequest.reviewedAt)}
+                          </p>
+                          {hostRoleRequestState.latestRequest.reviewReason ? (
+                            <p className="detail-line history-reason">
+                              {hostRoleRequestState.latestRequest.reviewReason}
+                            </p>
+                          ) : null}
+                        </>
+                      )}
+                    </section>
+
+                    <section className="detail-card detail-card-wide">
+                      <h3>Create request</h3>
+                      <form className="stack" onSubmit={handleCreateHostRoleRequest}>
+                        <label>
+                          Request reason
+                          <textarea
+                            rows={4}
+                            value={hostRoleRequestReason}
+                            onChange={(event) => setHostRoleRequestReason(event.target.value)}
+                            placeholder="Why should this account gain host access?"
+                          />
+                        </label>
+                        <button
+                          type="submit"
+                          disabled={!hostRoleRequestState.canSubmitNewRequest || creatingHostRoleRequest}
+                        >
+                          {creatingHostRoleRequest ? 'Submitting...' : 'Request host role'}
+                        </button>
+                      </form>
+                    </section>
+                  </div>
+                )}
+              </section>
+            </section>
+          )}
+
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>Guest search</h2>
                 <p className="muted">
-                  Minimal SRS read flow for accommodation search, room-type availability, and
-                  calendar inspection.
+                  Search and accommodation detail are public. Pricing preview uses the check-in night, and guest count
+                  now flows through to reservation persistence.
                 </p>
               </div>
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => void loadSearchResults()}
+                onClick={() => void refreshSearchContext()}
                 disabled={searching}
               >
                 {searching ? 'Refreshing...' : 'Refresh search'}
               </button>
             </div>
+
             <form className="search-form" onSubmit={handleSearchSubmit}>
               <label>
                 Region
                 <input
                   value={searchForm.region}
                   onChange={(event) =>
-                    setSearchForm((current) => ({ ...current, region: event.target.value }))
+                    setSearchForm((current) => ({ ...current, region: event.target.value.toUpperCase() }))
                   }
                 />
               </label>
@@ -991,7 +1380,7 @@ function App() {
                 Guests
                 <input
                   type="number"
-                  min="1"
+                  min={1}
                   value={searchForm.guestCount}
                   onChange={(event) =>
                     setSearchForm((current) => ({ ...current, guestCount: event.target.value }))
@@ -1025,13 +1414,14 @@ function App() {
               </button>
             </form>
           </section>
-
           <section className="content-grid">
             <section className="panel">
               <div className="panel-header">
                 <div>
                   <h2>Search results</h2>
-                  <p className="muted">Results are classified to match the frozen baseline and show check-in price preview.</p>
+                  <p className="muted">
+                    Public results are classified to match the frozen baseline and show check-in price preview.
+                  </p>
                 </div>
               </div>
               {searchResults.length === 0 ? (
@@ -1052,9 +1442,7 @@ function App() {
                           <strong>{result.accommodationName}</strong>
                           <p>{result.region}</p>
                         </div>
-                        <span
-                          className={`status-pill status-${result.availabilityCategory.toLowerCase()}`}
-                        >
+                        <span className={`status-pill status-${result.availabilityCategory.toLowerCase()}`}>
                           {formatClassification(result.availabilityCategory)}
                         </span>
                       </div>
@@ -1074,13 +1462,15 @@ function App() {
               <div className="panel-header">
                 <div>
                   <h2>Accommodation detail</h2>
-                  <p className="muted">Room-type availability is evaluated for the full stay. Pricing preview uses the check-in night.</p>
+                  <p className="muted">
+                    Browse room types and daily availability without login. Reserve only after sign-in.
+                  </p>
                 </div>
                 {selectedAccommodationId ? (
                   <button
                     type="button"
                     className="secondary-button"
-                    onClick={() => void loadAccommodationDetail(selectedAccommodationId, true)}
+                    onClick={() => void loadAccommodationDetail(selectedAccommodationId, true, selectedRoomTypeId)}
                     disabled={loadingDetail}
                   >
                     {loadingDetail ? 'Refreshing...' : 'Refresh detail'}
@@ -1099,15 +1489,24 @@ function App() {
                       <p>{accommodationDetail.infoText ?? 'No additional property description.'}</p>
                     </div>
                     <div className="summary-meta">
-                      <span
-                        className={`status-pill status-${accommodationDetail.availabilityCategory.toLowerCase()}`}
-                      >
+                      <span className={`status-pill status-${accommodationDetail.availabilityCategory.toLowerCase()}`}>
                         {formatClassification(accommodationDetail.availabilityCategory)}
                       </span>
                       <span>Check-in {accommodationDetail.checkInTime}</span>
                       <span>Check-out {accommodationDetail.checkOutTime}</span>
+                      <span>{searchForm.guestCount} guest(s) in current search</span>
                     </div>
                   </div>
+
+                  {!user ? (
+                    <div className="info-card">
+                      <strong>Reservation entry is gated</strong>
+                      <p className="detail-line">
+                        Anonymous users can browse search/detail/calendar, but login or signup is required before
+                        creating a reservation.
+                      </p>
+                    </div>
+                  ) : null}
 
                   <div className="table-wrap">
                     <table>
@@ -1140,9 +1539,7 @@ function App() {
                               <td>{roomType.totalRoomCount}</td>
                               <td>{roomType.availableRoomCount}</td>
                               <td>
-                                <span
-                                  className={`status-pill status-${roomType.availabilityCategory.toLowerCase()}`}
-                                >
+                                <span className={`status-pill status-${roomType.availabilityCategory.toLowerCase()}`}>
                                   {formatClassification(roomType.availabilityCategory)}
                                 </span>
                               </td>
@@ -1168,7 +1565,9 @@ function App() {
                                   >
                                     {creatingReservation === roomType.roomTypeId
                                       ? 'Creating...'
-                                      : 'Reserve this room type'}
+                                      : user
+                                        ? 'Reserve this room type'
+                                        : 'Sign in to reserve'}
                                   </button>
                                 </div>
                               </td>
@@ -1193,9 +1592,7 @@ function App() {
                         <button
                           type="button"
                           className="secondary-button"
-                          onClick={() =>
-                            void loadCalendar(selectedAccommodationId, selectedRoomTypeId, true)
-                          }
+                          onClick={() => void loadCalendar(selectedAccommodationId, selectedRoomTypeId, true)}
                           disabled={loadingCalendar}
                         >
                           {loadingCalendar ? 'Refreshing...' : 'Refresh calendar'}
@@ -1225,210 +1622,218 @@ function App() {
             </section>
           </section>
 
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>My reservations</h2>
-                <p className="muted">
-                  Refresh this list after host review to confirm status reflection in the guest UI.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => void handleRefreshReservations()}
-              >
-                {refreshingReservations ? 'Refreshing...' : 'Refresh list'}
-              </button>
-            </div>
-            {reservations.length === 0 ? (
-              <p className="empty-state">No reservations yet.</p>
-            ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Reservation No</th>
-                      <th>Accommodation</th>
-                      <th>Room type</th>
-                      <th>Stay</th>
-                      <th>Status</th>
-                      <th>Requested</th>
-                      <th>Detail</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reservations.map((reservation) => (
-                      <tr key={reservation.reservationId}>
-                        <td>{reservation.reservationNo}</td>
-                        <td>{reservation.accommodationName}</td>
-                        <td>{reservation.roomTypeName}</td>
-                        <td>
-                          {reservation.checkInDate} to {reservation.checkOutDate}
-                        </td>
-                        <td>
-                          <span className={`status-pill status-${reservation.status.toLowerCase()}`}>
-                            {reservation.status}
-                          </span>
-                        </td>
-                        <td>{new Date(reservation.requestedAt).toLocaleString('ko-KR')}</td>
-                        <td>
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={() => void handleOpenReservationDetail(reservation.reservationId, true)}
-                          >
-                            Open detail
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <div className="reservation-detail-shell">
+          {user ? (
+            <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h3>Reservation detail</h3>
+                  <h2>My reservations</h2>
                   <p className="muted">
-                    M4 guest detail + cancellation slice with guest-safe nightly info and cutoff checks.
+                    Reservation headers and detail now expose stored guest count along with status reflection.
                   </p>
                 </div>
-                {selectedReservationId ? (
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => void handleOpenReservationDetail(selectedReservationId, true)}
-                    disabled={loadingReservationDetail}
-                  >
-                    {loadingReservationDetail ? 'Refreshing...' : 'Refresh detail'}
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => void handleRefreshReservations()}
+                >
+                  {refreshingReservations ? 'Refreshing...' : 'Refresh list'}
+                </button>
               </div>
-
-              {!reservationDetail ? (
-                <p className="empty-state">Open one reservation from the list to inspect the detail view.</p>
+              {reservations.length === 0 ? (
+                <p className="empty-state">No reservations yet.</p>
               ) : (
-                <div className="reservation-detail-grid">
-                  <section className="detail-card">
-                    <h4>Core fields</h4>
-                    <dl className="definition-list reservation-definition-list">
-                      <div>
-                        <dt>Reservation No</dt>
-                        <dd>{reservationDetail.reservationNo}</dd>
-                      </div>
-                      <div>
-                        <dt>Status</dt>
-                        <dd>
-                          <span className={`status-pill status-${reservationDetail.status.toLowerCase()}`}>
-                            {reservationDetail.status}
-                          </span>
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Check-in</dt>
-                        <dd>{reservationDetail.checkInDate}</dd>
-                      </div>
-                      <div>
-                        <dt>Check-out</dt>
-                        <dd>{reservationDetail.checkOutDate}</dd>
-                      </div>
-                      <div>
-                        <dt>Requested</dt>
-                        <dd>{formatTimestamp(reservationDetail.requestedAt)}</dd>
-                      </div>
-                      <div>
-                        <dt>Confirmed</dt>
-                        <dd>{formatTimestamp(reservationDetail.confirmedAt)}</dd>
-                      </div>
-                      <div>
-                        <dt>Cancelled</dt>
-                        <dd>{formatTimestamp(reservationDetail.cancelledAt)}</dd>
-                      </div>
-                    </dl>
-                  </section>
-
-                  <section className="detail-card">
-                    <h4>Accommodation summary</h4>
-                    <p className="detail-line">
-                      <strong>{reservationDetail.accommodation.accommodationName}</strong>
-                    </p>
-                    <p className="detail-line">{reservationDetail.accommodation.region}</p>
-                    <p className="detail-line">{reservationDetail.accommodation.address}</p>
-                    <h4>Room type summary</h4>
-                    <p className="detail-line">{reservationDetail.roomType.roomTypeName}</p>
-                  </section>
-
-                  <section className="detail-card">
-                    <h4>Nightly stay rows</h4>
-                    <div className="night-chip-list">
-                      {reservationDetail.nights.map((night) => (
-                        <span key={night.reservationNightId} className="night-chip">
-                          {night.stayDate}
-                        </span>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Reservation No</th>
+                        <th>Accommodation</th>
+                        <th>Room type</th>
+                        <th>Guests</th>
+                        <th>Stay</th>
+                        <th>Status</th>
+                        <th>Requested</th>
+                        <th>Detail</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reservations.map((reservation) => (
+                        <tr key={reservation.reservationId}>
+                          <td>{reservation.reservationNo}</td>
+                          <td>{reservation.accommodationName}</td>
+                          <td>{reservation.roomTypeName}</td>
+                          <td>{reservation.guestCount}</td>
+                          <td>
+                            {reservation.checkInDate} to {reservation.checkOutDate}
+                          </td>
+                          <td>
+                            <span className={`status-pill status-${reservation.status.toLowerCase()}`}>
+                              {reservation.status}
+                            </span>
+                          </td>
+                          <td>{new Date(reservation.requestedAt).toLocaleString('ko-KR')}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => void handleOpenReservationDetail(reservation.reservationId, true)}
+                            >
+                              Open detail
+                            </button>
+                          </td>
+                        </tr>
                       ))}
-                    </div>
-                    <p className="muted">
-                      Actual room number stays hidden in the guest view per the frozen baseline.
-                    </p>
-                  </section>
-
-                  <section className="detail-card">
-                    <h4>Cancellation</h4>
-                    <p className="detail-line">
-                      Effective cutoff: {formatTimestamp(reservationDetail.cancellationCutoffAt)}
-                    </p>
-                    <p
-                      className={`cancellation-state ${
-                        reservationDetail.cancellationAllowed
-                          ? 'cancellation-state-allowed'
-                          : 'cancellation-state-blocked'
-                      }`}
-                    >
-                      {reservationDetail.cancellationAllowed
-                        ? 'Cancellation is currently allowed.'
-                        : reservationDetail.cancellationBlockedReason ?? 'Cancellation is currently blocked.'}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => void handleCancelReservation()}
-                      disabled={!reservationDetail.cancellationAllowed || cancellingReservation}
-                    >
-                      {cancellingReservation ? 'Cancelling...' : 'Cancel reservation'}
-                    </button>
-                  </section>
-
-                  <section className="detail-card detail-card-wide">
-                    <h4>Status history</h4>
-                    {reservationDetail.statusHistory.length === 0 ? (
-                      <p className="empty-state">No status events recorded yet.</p>
-                    ) : (
-                      <div className="history-list">
-                        {reservationDetail.statusHistory.map((event) => (
-                          <article key={`${event.actionType}-${event.changedAt}`} className="history-item">
-                            <div className="history-header">
-                              <strong>{formatReservationAction(event.actionType)}</strong>
-                              <span>{formatTimestamp(event.changedAt)}</span>
-                            </div>
-                            <p className="detail-line">
-                              {event.fromStatus ? `${event.fromStatus} -> ${event.toStatus}` : event.toStatus}
-                            </p>
-                            {event.reasonText ? (
-                              <p className="detail-line history-reason">{event.reasonText}</p>
-                            ) : null}
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </section>
+                    </tbody>
+                  </table>
                 </div>
               )}
-            </div>
-          </section>
+
+              <div className="reservation-detail-shell">
+                <div className="panel-header">
+                  <div>
+                    <h3>Reservation detail</h3>
+                    <p className="muted">
+                      M4 detail plus guest-count persistence, guest-safe nightly rows, and cutoff-aware cancellation.
+                    </p>
+                  </div>
+                  {selectedReservationId ? (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => void handleOpenReservationDetail(selectedReservationId, true)}
+                      disabled={loadingReservationDetail}
+                    >
+                      {loadingReservationDetail ? 'Refreshing...' : 'Refresh detail'}
+                    </button>
+                  ) : null}
+                </div>
+
+                {!reservationDetail ? (
+                  <p className="empty-state">Open one reservation from the list to inspect the detail view.</p>
+                ) : (
+                  <div className="reservation-detail-grid">
+                    <section className="detail-card">
+                      <h4>Core fields</h4>
+                      <dl className="definition-list reservation-definition-list">
+                        <div>
+                          <dt>Reservation No</dt>
+                          <dd>{reservationDetail.reservationNo}</dd>
+                        </div>
+                        <div>
+                          <dt>Status</dt>
+                          <dd>
+                            <span className={`status-pill status-${reservationDetail.status.toLowerCase()}`}>
+                              {reservationDetail.status}
+                            </span>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Guests</dt>
+                          <dd>{reservationDetail.guestCount}</dd>
+                        </div>
+                        <div>
+                          <dt>Check-in</dt>
+                          <dd>{reservationDetail.checkInDate}</dd>
+                        </div>
+                        <div>
+                          <dt>Check-out</dt>
+                          <dd>{reservationDetail.checkOutDate}</dd>
+                        </div>
+                        <div>
+                          <dt>Requested</dt>
+                          <dd>{formatTimestamp(reservationDetail.requestedAt)}</dd>
+                        </div>
+                        <div>
+                          <dt>Confirmed</dt>
+                          <dd>{formatTimestamp(reservationDetail.confirmedAt)}</dd>
+                        </div>
+                        <div>
+                          <dt>Cancelled</dt>
+                          <dd>{formatTimestamp(reservationDetail.cancelledAt)}</dd>
+                        </div>
+                      </dl>
+                    </section>
+
+                    <section className="detail-card">
+                      <h4>Accommodation summary</h4>
+                      <p className="detail-line">
+                        <strong>{reservationDetail.accommodation.accommodationName}</strong>
+                      </p>
+                      <p className="detail-line">{reservationDetail.accommodation.region}</p>
+                      <p className="detail-line">{reservationDetail.accommodation.address}</p>
+                      <h4>Room type summary</h4>
+                      <p className="detail-line">{reservationDetail.roomType.roomTypeName}</p>
+                    </section>
+
+                    <section className="detail-card">
+                      <h4>Nightly stay rows</h4>
+                      <div className="night-chip-list">
+                        {reservationDetail.nights.map((night) => (
+                          <span key={night.reservationNightId} className="night-chip">
+                            {night.stayDate}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="muted">
+                        Actual room number stays hidden in the guest view per the frozen baseline.
+                      </p>
+                    </section>
+
+                    <section className="detail-card">
+                      <h4>Cancellation</h4>
+                      <p className="detail-line">
+                        Effective cutoff: {formatTimestamp(reservationDetail.cancellationCutoffAt)}
+                      </p>
+                      <p
+                        className={`cancellation-state ${
+                          reservationDetail.cancellationAllowed
+                            ? 'cancellation-state-allowed'
+                            : 'cancellation-state-blocked'
+                        }`}
+                      >
+                        {reservationDetail.cancellationAllowed
+                          ? 'Cancellation is currently allowed.'
+                          : reservationDetail.cancellationBlockedReason ?? 'Cancellation is currently blocked.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void handleCancelReservation()}
+                        disabled={!reservationDetail.cancellationAllowed || cancellingReservation}
+                      >
+                        {cancellingReservation ? 'Cancelling...' : 'Cancel reservation'}
+                      </button>
+                    </section>
+
+                    <section className="detail-card detail-card-wide">
+                      <h4>Status history</h4>
+                      {reservationDetail.statusHistory.length === 0 ? (
+                        <p className="empty-state">No status events recorded yet.</p>
+                      ) : (
+                        <div className="history-list">
+                          {reservationDetail.statusHistory.map((event) => (
+                            <article key={`${event.actionType}-${event.changedAt}`} className="history-item">
+                              <div className="history-header">
+                                <strong>{formatReservationAction(event.actionType)}</strong>
+                                <span>{formatTimestamp(event.changedAt)}</span>
+                              </div>
+                              <p className="detail-line">
+                                {event.fromStatus ? `${event.fromStatus} -> ${event.toStatus}` : event.toStatus}
+                              </p>
+                              {event.reasonText ? (
+                                <p className="detail-line history-reason">{event.reasonText}</p>
+                              ) : null}
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : null}
         </main>
-      ) : null}
+      )}
     </div>
   );
 }

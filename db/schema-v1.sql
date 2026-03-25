@@ -183,6 +183,7 @@ CREATE TABLE reservations (
     guest_user_id BIGINT UNSIGNED NOT NULL,
     accommodation_id BIGINT UNSIGNED NOT NULL,
     room_type_id BIGINT UNSIGNED NOT NULL,
+    guest_count INT NOT NULL,
     check_in_date DATE NOT NULL,
     check_out_date DATE NOT NULL,
     status ENUM('PENDING', 'CONFIRMED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
@@ -205,6 +206,8 @@ CREATE TABLE reservations (
         REFERENCES room_types (accommodation_id, room_type_id),
     CONSTRAINT chk_reservations_date_range
         CHECK (check_in_date < check_out_date),
+    CONSTRAINT chk_reservations_guest_count
+        CHECK (guest_count > 0),
     CONSTRAINT chk_reservations_status_timestamps
         CHECK (
             (status = 'PENDING' AND confirmed_at IS NULL AND cancelled_at IS NULL)

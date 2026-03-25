@@ -563,3 +563,40 @@
   `:ops-api:build`,
   `pnpm --filter guest-web build`,
   `pnpm --filter ops-web build`.
+
+## Latest Implementation Note (2026-03-25 / guest-access-account-alignment)
+
+- Scope in for this pass:
+  public guest browsing before login,
+  signup terms capture and password confirmation,
+  guest self account/profile/password management,
+  reservation `guest_count` persistence and exposure.
+- Traceability:
+  `REQ-F-001 ~ REQ-F-035`,
+  `REQ-F-036 ~ REQ-F-049`,
+  `REQ-F-050 ~ REQ-F-069`,
+  `REQ-F-096 ~ REQ-F-106`,
+  `REQ-SEC-001 ~ REQ-SEC-008`,
+  `REQ-NF-001 ~ REQ-NF-003`.
+- Explicitly unchanged:
+  `BD-05`,
+  `BD-06`,
+  `BD-07`,
+  `BD-08`,
+  session-based auth baseline,
+  reservation/block/pricing/reassignment semantics.
+- Planned implementation order:
+  1. document and schema/application baseline update for `guest_count`,
+  2. public browse read-path exposure without weakening reservation ownership checks,
+  3. signup required-terms capture using existing `terms` + `user_term_agreements`,
+  4. guest self profile/password management,
+  5. guest/ops reservation read-model exposure for `guest_count`,
+  6. guest-web alignment for anonymous browse, auth gating, signup terms, and account management.
+- Explicitly out of scope in this pass:
+  account recovery,
+  forced session invalidation,
+  reservation lifecycle redesign,
+  pricing/block rule changes,
+  host asset CRUD,
+  host-side reservation cancel,
+  admin audit/system-log/notice operations.

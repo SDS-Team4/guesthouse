@@ -164,6 +164,13 @@ button {
   color: #475569;
 }
 
+.info-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
 .stack {
   display: flex;
   flex-direction: column;
@@ -180,6 +187,12 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
 }
 
 label {
@@ -201,6 +214,27 @@ textarea {
 
 textarea {
   resize: vertical;
+}
+
+.terms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checkbox-card {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #d7e1ec;
+}
+
+.checkbox-card input {
+  width: auto;
+  margin-top: 4px;
 }
 
 button {
@@ -243,6 +277,10 @@ button:disabled {
   padding: 12px 14px;
   border-radius: 12px;
   background: #f8fafc;
+}
+
+.compact-definition-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .definition-list dt {
@@ -502,7 +540,8 @@ th {
   .search-form,
   .reservation-detail-grid,
   .auth-grid,
-  .host-role-request-grid {
+  .host-role-request-grid,
+  .account-grid {
     grid-template-columns: 1fr;
   }
 }

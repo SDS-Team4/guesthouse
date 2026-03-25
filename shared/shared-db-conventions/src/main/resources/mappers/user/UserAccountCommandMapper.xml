@@ -37,4 +37,24 @@
           AND role = #{expectedRole}
           AND status = 'ACTIVE'
     </update>
+
+    <update id="updateUserProfile">
+        UPDATE users
+        SET
+            name = #{name},
+            email = #{email},
+            phone = #{phone},
+            updated_at = #{updatedAt}
+        WHERE user_id = #{userId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <update id="updateUserPasswordHash">
+        UPDATE users
+        SET
+            password_hash = #{passwordHash},
+            updated_at = #{updatedAt}
+        WHERE user_id = #{userId}
+          AND status = 'ACTIVE'
+    </update>
 </mapper>

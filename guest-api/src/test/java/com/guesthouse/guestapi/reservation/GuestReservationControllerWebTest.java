@@ -25,6 +25,8 @@ import com.guesthouse.shared.db.roomblock.mapper.RoomBlockQueryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationCommandMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationInventoryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
+import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
 import com.guesthouse.shared.domain.api.AppException;
@@ -117,6 +119,12 @@ class GuestReservationControllerWebTest {
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
 
+    @MockBean
+    private TermQueryMapper termQueryMapper;
+
+    @MockBean
+    private UserTermAgreementCommandMapper userTermAgreementCommandMapper;
+
     @Test
     void createReservationReturnsPendingReservationForAuthenticatedGuest() throws Exception {
         when(reservationRequestService.createReservation(any()))
@@ -140,6 +148,7 @@ class GuestReservationControllerWebTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(new ReservationPayload(
                                         1001L,
+                                        2,
                                         LocalDate.of(2026, 4, 12),
                                         LocalDate.of(2026, 4, 14)
                                 )))
@@ -157,6 +166,7 @@ class GuestReservationControllerWebTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(new ReservationPayload(
                                         1001L,
+                                        2,
                                         LocalDate.of(2026, 4, 12),
                                         LocalDate.of(2026, 4, 14)
                                 )))
@@ -183,6 +193,7 @@ class GuestReservationControllerWebTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(new ReservationPayload(
                                         1001L,
+                                        2,
                                         LocalDate.of(2026, 4, 12),
                                         LocalDate.of(2026, 4, 14)
                                 )))
@@ -201,6 +212,7 @@ class GuestReservationControllerWebTest {
         summaryRecord.setAccommodationName("Seoul Bridge Guesthouse");
         summaryRecord.setRoomTypeId(1001L);
         summaryRecord.setRoomTypeName("Standard Double");
+        summaryRecord.setGuestCount(2);
         summaryRecord.setCheckInDate(LocalDate.of(2026, 4, 12));
         summaryRecord.setCheckOutDate(LocalDate.of(2026, 4, 14));
         summaryRecord.setStatus(ReservationStatus.PENDING);
@@ -237,6 +249,7 @@ class GuestReservationControllerWebTest {
         detailRecord.setCheckOutDate(LocalDate.of(2026, 4, 14));
         detailRecord.setAccommodationCheckInTime(java.time.LocalTime.of(15, 0));
         detailRecord.setStatus(ReservationStatus.CONFIRMED);
+        detailRecord.setGuestCount(2);
         detailRecord.setRequestedAt(LocalDateTime.of(2026, 4, 1, 10, 0));
         detailRecord.setConfirmedAt(LocalDateTime.of(2026, 4, 1, 10, 15));
 
@@ -274,6 +287,7 @@ class GuestReservationControllerWebTest {
                 .andExpect(jsonPath("$.data.reservationNo").value("GH-202604-0001"))
                 .andExpect(jsonPath("$.data.accommodation.accommodationName").value("Seoul Bridge Guesthouse"))
                 .andExpect(jsonPath("$.data.roomType.roomTypeName").value("Standard Double"))
+                .andExpect(jsonPath("$.data.guestCount").value(2))
                 .andExpect(jsonPath("$.data.cancellationAllowed").value(true))
                 .andExpect(jsonPath("$.data.nights[0].stayDate").value("2026-04-12"))
                 .andExpect(jsonPath("$.data.statusHistory[0].actionType").value("HOST_CONFIRMED"));
@@ -339,6 +353,6 @@ class GuestReservationControllerWebTest {
                 .andExpect(jsonPath("$.error.message").value("Cancellation is not allowed after the check-in time."));
     }
 
-    private record ReservationPayload(Long roomTypeId, LocalDate checkInDate, LocalDate checkOutDate) {
+    private record ReservationPayload(Long roomTypeId, Integer guestCount, LocalDate checkInDate, LocalDate checkOutDate) {
     }
 }

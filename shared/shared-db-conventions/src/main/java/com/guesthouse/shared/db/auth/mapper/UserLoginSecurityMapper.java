@@ -13,4 +13,6 @@ public interface UserLoginSecurityMapper {
     void registerFailedLogin(@Param("userId") Long userId, @Param("failedAt") LocalDateTime failedAt);
 
     void registerSuccessfulLogin(@Param("userId") Long userId, @Param("loginAt") LocalDateTime loginAt);
+
+    int markPasswordChanged(@Param("userId") Long userId, @Param("changedAt") LocalDateTime changedAt);
 }

@@ -16,6 +16,7 @@ public record OpsReservationDetailResponse(
         OpsReservationGuestSummaryResponse guest,
         OpsReservationAccommodationSummaryResponse accommodation,
         OpsReservationRoomTypeSummaryResponse roomType,
+        Integer guestCount,
         ReservationStatus status,
         LocalDate checkInDate,
         LocalDate checkOutDate,
@@ -55,6 +56,7 @@ public record OpsReservationDetailResponse(
                         reservation.getRoomTypeId(),
                         reservation.getRoomTypeName()
                 ),
+                reservation.getGuestCount(),
                 reservation.getStatus(),
                 reservation.getCheckInDate(),
                 reservation.getCheckOutDate(),

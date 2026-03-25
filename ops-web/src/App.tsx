@@ -30,6 +30,7 @@ type ReservationSummary = {
   accommodationName: string;
   roomTypeId: number;
   roomTypeName: string;
+  guestCount: number;
   checkInDate: string;
   checkOutDate: string;
   status: ReservationStatus;
@@ -47,6 +48,7 @@ type ReservationDetail = {
   guest: { guestUserId: number; guestLoginId: string; guestName: string };
   accommodation: { accommodationId: number; accommodationName: string; region: string; address: string };
   roomType: { roomTypeId: number; roomTypeName: string };
+  guestCount: number;
   status: ReservationStatus;
   checkInDate: string;
   checkOutDate: string;
@@ -393,6 +395,7 @@ function reservationDetailToSummary(reservationDetail: ReservationDetail): Reser
     accommodationName: reservationDetail.accommodation.accommodationName,
     roomTypeId: reservationDetail.roomType.roomTypeId,
     roomTypeName: reservationDetail.roomType.roomTypeName,
+    guestCount: reservationDetail.guestCount,
     checkInDate: reservationDetail.checkInDate,
     checkOutDate: reservationDetail.checkOutDate,
     status: reservationDetail.status,
@@ -1520,6 +1523,7 @@ function App() {
                       <th>Guest</th>
                       <th>Accommodation</th>
                       <th>Room type</th>
+                      <th>Guests</th>
                       <th>Stay</th>
                       <th>Signals</th>
                       <th>Timestamps</th>
@@ -1545,6 +1549,7 @@ function App() {
                           </td>
                           <td>{reservation.accommodationName}</td>
                           <td>{reservation.roomTypeName}</td>
+                          <td>{reservation.guestCount}</td>
                           <td>{reservation.checkInDate} to {reservation.checkOutDate}</td>
                           <td>
                             <div className="signal-list">
@@ -2048,6 +2053,7 @@ function App() {
                     <p className="detail-line"><strong>{reservationDetail.guest.guestName}</strong></p>
                     <p className="detail-line">{reservationDetail.guest.guestLoginId}</p>
                     <p className="detail-line">Guest ID {reservationDetail.guest.guestUserId}</p>
+                    <p className="detail-line">Guest count {reservationDetail.guestCount}</p>
                   </section>
 
                   <section className="detail-card">

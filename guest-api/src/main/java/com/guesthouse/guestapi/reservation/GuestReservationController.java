@@ -54,6 +54,7 @@ public class GuestReservationController {
                                 new CreateReservationCommand(
                                         sessionUser.userId(),
                                         createReservationRequest.roomTypeId(),
+                                        createReservationRequest.guestCount(),
                                         createReservationRequest.checkInDate(),
                                         createReservationRequest.checkOutDate()
                                 )

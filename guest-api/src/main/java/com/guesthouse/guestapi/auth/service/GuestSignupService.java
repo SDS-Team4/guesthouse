@@ -2,6 +2,10 @@ package com.guesthouse.guestapi.auth.service;
 
 import com.guesthouse.guestapi.auth.api.SignupRequest;
 import com.guesthouse.shared.db.auth.mapper.UserLoginSecurityMapper;
+import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
+import com.guesthouse.shared.db.term.model.PublishedRequiredTermRecord;
+import com.guesthouse.shared.db.term.model.UserTermAgreementInsertParam;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
 import com.guesthouse.shared.db.user.model.UserInsertParam;
@@ -18,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @Service
 public class GuestSignupService {
@@ -27,6 +34,8 @@ public class GuestSignupService {
     private final UserAccountQueryMapper userAccountQueryMapper;
     private final UserAccountCommandMapper userAccountCommandMapper;
     private final UserLoginSecurityMapper userLoginSecurityMapper;
+    private final TermQueryMapper termQueryMapper;
+    private final UserTermAgreementCommandMapper userTermAgreementCommandMapper;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
@@ -34,23 +43,38 @@ public class GuestSignupService {
             UserAccountQueryMapper userAccountQueryMapper,
             UserAccountCommandMapper userAccountCommandMapper,
             UserLoginSecurityMapper userLoginSecurityMapper,
+            TermQueryMapper termQueryMapper,
+            UserTermAgreementCommandMapper userTermAgreementCommandMapper,
             PasswordEncoder passwordEncoder,
             Clock clock
     ) {
         this.userAccountQueryMapper = userAccountQueryMapper;
         this.userAccountCommandMapper = userAccountCommandMapper;
         this.userLoginSecurityMapper = userLoginSecurityMapper;
+        this.termQueryMapper = termQueryMapper;
+        this.userTermAgreementCommandMapper = userTermAgreementCommandMapper;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
+    }
+
+    public List<PublishedRequiredTermRecord> findPublishedRequiredTerms() {
+        return termQueryMapper.findPublishedRequiredTerms();
     }
 
     @Transactional
     public GuestSignupResult signup(SignupRequest request) {
         String loginId = normalizeRequired(request.loginId(), "Login ID is required.");
         String password = request.password();
+        String passwordConfirm = request.passwordConfirm();
         String name = normalizeRequired(request.name(), "Name is required.");
         String email = normalizeOptional(request.email());
         String phone = normalizeOptional(request.phone());
+        List<PublishedRequiredTermRecord> requiredTerms = termQueryMapper.findPublishedRequiredTerms();
+
+        if (!password.equals(passwordConfirm)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, HttpStatus.BAD_REQUEST, "Password confirmation does not match.");
+        }
+        validateRequiredTermsAgreement(requiredTerms, request.agreedTermIds());
 
         if (userAccountQueryMapper.findUserIdByLoginId(loginId) != null) {
             throw new AppException(ErrorCode.DUPLICATE_LOGIN_ID, HttpStatus.CONFLICT);
@@ -80,6 +104,9 @@ public class GuestSignupService {
             throw new AppException(ErrorCode.DUPLICATE_LOGIN_ID, HttpStatus.CONFLICT);
         }
         userLoginSecurityMapper.insertIfAbsent(userInsertParam.getUserId());
+        userTermAgreementCommandMapper.insertUserTermAgreements(
+                buildAgreementInsertParams(userInsertParam.getUserId(), requiredTerms, now)
+        );
 
         return new GuestSignupResult(
                 userInsertParam.getUserId(),
@@ -91,6 +118,39 @@ public class GuestSignupService {
                 UserStatus.ACTIVE,
                 now.atZone(BUSINESS_ZONE_ID).toOffsetDateTime()
         );
+    }
+
+    private void validateRequiredTermsAgreement(
+            List<PublishedRequiredTermRecord> requiredTerms,
+            List<Long> agreedTermIds
+    ) {
+        Set<Long> agreedIds = agreedTermIds == null ? Set.of() : new LinkedHashSet<>(agreedTermIds);
+        for (PublishedRequiredTermRecord requiredTerm : requiredTerms) {
+            if (!agreedIds.contains(requiredTerm.getTermId())) {
+                throw new AppException(
+                        ErrorCode.INVALID_REQUEST,
+                        HttpStatus.BAD_REQUEST,
+                        "All required terms must be agreed before signup."
+                );
+            }
+        }
+    }
+
+    private List<UserTermAgreementInsertParam> buildAgreementInsertParams(
+            Long userId,
+            List<PublishedRequiredTermRecord> requiredTerms,
+            LocalDateTime now
+    ) {
+        return requiredTerms.stream()
+                .map(requiredTerm -> {
+                    UserTermAgreementInsertParam insertParam = new UserTermAgreementInsertParam();
+                    insertParam.setUserId(userId);
+                    insertParam.setTermId(requiredTerm.getTermId());
+                    insertParam.setAgreedAt(now);
+                    insertParam.setTermVersionSnapshot(requiredTerm.getVersion());
+                    return insertParam;
+                })
+                .toList();
     }
 
     private String normalizeRequired(String value, String message) {

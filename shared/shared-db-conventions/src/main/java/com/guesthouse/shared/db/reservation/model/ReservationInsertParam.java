@@ -12,6 +12,7 @@ public class ReservationInsertParam {
     private Long guestUserId;
     private Long accommodationId;
     private Long roomTypeId;
+    private Integer guestCount;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private ReservationStatus status;
@@ -57,6 +58,14 @@ public class ReservationInsertParam {
 
     public void setRoomTypeId(Long roomTypeId) {
         this.roomTypeId = roomTypeId;
+    }
+
+    public Integer getGuestCount() {
+        return guestCount;
+    }
+
+    public void setGuestCount(Integer guestCount) {
+        this.guestCount = guestCount;
     }
 
     public LocalDate getCheckInDate() {

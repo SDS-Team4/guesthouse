@@ -75,7 +75,7 @@ class ReservationRequestServiceTest {
         }).when(reservationCommandMapper).insertReservation(any(ReservationInsertParam.class));
 
         CreateReservationResult result = reservationRequestService.createReservation(
-                new CreateReservationCommand(101L, 1001L, checkInDate, checkOutDate)
+                new CreateReservationCommand(101L, 1001L, 2, checkInDate, checkOutDate)
         );
 
         ArgumentCaptor<ReservationInsertParam> reservationCaptor = ArgumentCaptor.forClass(ReservationInsertParam.class);
@@ -93,6 +93,7 @@ class ReservationRequestServiceTest {
         assertEquals(ReservationStatus.PENDING, reservation.getStatus());
         assertEquals(101L, reservation.getGuestUserId());
         assertEquals(501L, reservation.getAccommodationId());
+        assertEquals(2, reservation.getGuestCount());
 
         List<ReservationNightInsertParam> nights = nightsCaptor.getValue();
         assertEquals(2, nights.size());
@@ -125,7 +126,7 @@ class ReservationRequestServiceTest {
         AppException exception = assertThrows(
                 AppException.class,
                 () -> reservationRequestService.createReservation(
-                        new CreateReservationCommand(101L, 1001L, checkInDate, checkOutDate)
+                        new CreateReservationCommand(101L, 1001L, 2, checkInDate, checkOutDate)
                 )
         );
 
@@ -144,6 +145,7 @@ class ReservationRequestServiceTest {
                         new CreateReservationCommand(
                                 101L,
                                 1001L,
+                                2,
                                 LocalDate.of(2026, 3, 31),
                                 LocalDate.of(2026, 3, 31)
                         )
@@ -160,6 +162,7 @@ class ReservationRequestServiceTest {
         record.setRoomTypeId(1001L);
         record.setAccommodationId(501L);
         record.setRoomTypeName("스탠다드 더블");
+        record.setMaxCapacity(2);
         return record;
     }
 

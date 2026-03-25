@@ -23,6 +23,8 @@ import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
 import com.guesthouse.shared.db.roomblock.model.OpsAccommodationOptionRecord;
 import com.guesthouse.shared.db.roomblock.model.OpsRoomBlockRecord;
 import com.guesthouse.shared.db.roomblock.model.OpsRoomOptionRecord;
+import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
 import com.guesthouse.shared.domain.user.UserRole;
@@ -99,6 +101,12 @@ class OpsRoomBlockControllerWebTest {
 
     @MockBean
     private UserAccountCommandMapper userAccountCommandMapper;
+
+    @MockBean
+    private TermQueryMapper termQueryMapper;
+
+    @MockBean
+    private UserTermAgreementCommandMapper userTermAgreementCommandMapper;
 
     @MockBean
     private HostRoleRequestQueryMapper hostRoleRequestQueryMapper;

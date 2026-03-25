@@ -1,7 +1,11 @@
 package com.guesthouse.guestapi.account;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.guesthouse.guestapi.account.api.ChangeGuestPasswordRequest;
 import com.guesthouse.guestapi.account.api.CreateHostRoleRequestRequest;
+import com.guesthouse.guestapi.account.api.UpdateGuestAccountProfileRequest;
+import com.guesthouse.guestapi.account.service.GuestAccountProfileService;
+import com.guesthouse.guestapi.account.service.GuestAccountProfileView;
 import com.guesthouse.guestapi.account.service.GuestHostRoleRequestService;
 import com.guesthouse.guestapi.account.service.GuestHostRoleRequestStateView;
 import com.guesthouse.shared.auth.config.AuthWebMvcConfigurer;
@@ -16,6 +20,8 @@ import com.guesthouse.shared.db.pricing.mapper.PricePolicyQueryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationCommandMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationInventoryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
+import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
 import com.guesthouse.shared.db.roomblock.mapper.RoomBlockCommandMapper;
 import com.guesthouse.shared.db.roomblock.mapper.RoomBlockQueryMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
@@ -36,6 +42,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,6 +56,9 @@ class GuestAccountControllerWebTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private GuestAccountProfileService guestAccountProfileService;
 
     @MockBean
     private GuestHostRoleRequestService guestHostRoleRequestService;
@@ -90,6 +100,12 @@ class GuestAccountControllerWebTest {
     private UserAccountCommandMapper userAccountCommandMapper;
 
     @MockBean
+    private TermQueryMapper termQueryMapper;
+
+    @MockBean
+    private UserTermAgreementCommandMapper userTermAgreementCommandMapper;
+
+    @MockBean
     private HostRoleRequestQueryMapper hostRoleRequestQueryMapper;
 
     @MockBean
@@ -107,6 +123,82 @@ class GuestAccountControllerWebTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.currentUserRole").value("GUEST"))
                 .andExpect(jsonPath("$.data.canSubmitNewRequest").value(true));
+    }
+
+    @Test
+    void getProfileReturnsCurrentGuestProfile() throws Exception {
+        when(guestAccountProfileService.getProfile(101L))
+                .thenReturn(new GuestAccountProfileView(
+                        101L,
+                        "guest.demo",
+                        "Guest Demo",
+                        "guest@example.com",
+                        "010-1111-2222",
+                        UserRole.GUEST,
+                        com.guesthouse.shared.domain.user.UserStatus.ACTIVE
+                ));
+
+        mockMvc.perform(
+                        get("/api/v1/account/me")
+                                .session(guestSession())
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.loginId").value("guest.demo"))
+                .andExpect(jsonPath("$.data.email").value("guest@example.com"));
+    }
+
+    @Test
+    void updateProfileReturnsUpdatedProfile() throws Exception {
+        when(guestAccountProfileService.updateProfile(eq(101L), any(UpdateGuestAccountProfileRequest.class)))
+                .thenReturn(new GuestAccountProfileView(
+                        101L,
+                        "guest.demo",
+                        "Updated Guest",
+                        "updated@example.com",
+                        "010-9999-0000",
+                        UserRole.GUEST,
+                        com.guesthouse.shared.domain.user.UserStatus.ACTIVE
+                ));
+
+        mockMvc.perform(
+                        patch("/api/v1/account/me")
+                                .session(guestSession())
+                                .contentType(APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        new UpdateGuestAccountProfileRequest(
+                                                "Updated Guest",
+                                                "updated@example.com",
+                                                "010-9999-0000"
+                                        )
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Updated Guest"))
+                .andExpect(jsonPath("$.data.email").value("updated@example.com"));
+    }
+
+    @Test
+    void changePasswordReturnsChangedTimestamp() throws Exception {
+        when(guestAccountProfileService.changePassword(eq(101L), any(ChangeGuestPasswordRequest.class)))
+                .thenReturn(new com.guesthouse.guestapi.account.api.GuestAccountPasswordChangeResponse(
+                        true,
+                        java.time.OffsetDateTime.parse("2026-03-25T12:00:00+09:00")
+                ));
+
+        mockMvc.perform(
+                        post("/api/v1/account/password")
+                                .session(guestSession())
+                                .contentType(APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        new ChangeGuestPasswordRequest(
+                                                "guestpass123!",
+                                                "newguestpass123!",
+                                                "newguestpass123!"
+                                        )
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.changed").value(true));
     }
 
     @Test

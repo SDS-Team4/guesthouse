@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 public record CreateReservationRequest(
         @NotNull Long roomTypeId,
+        @NotNull Integer guestCount,
         @NotNull LocalDate checkInDate,
         @NotNull LocalDate checkOutDate
 ) {

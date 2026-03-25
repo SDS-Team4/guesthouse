@@ -14,6 +14,7 @@ public record GuestReservationDetailResponse(
         String reservationNo,
         GuestReservationAccommodationSummaryResponse accommodation,
         GuestReservationRoomTypeSummaryResponse roomType,
+        Integer guestCount,
         LocalDate checkInDate,
         LocalDate checkOutDate,
         ReservationStatus status,
@@ -44,6 +45,7 @@ public record GuestReservationDetailResponse(
                         reservation.getRoomTypeId(),
                         reservation.getRoomTypeName()
                 ),
+                reservation.getGuestCount(),
                 reservation.getCheckInDate(),
                 reservation.getCheckOutDate(),
                 reservation.getStatus(),

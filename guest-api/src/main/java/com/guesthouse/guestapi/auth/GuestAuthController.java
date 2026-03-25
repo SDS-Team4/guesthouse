@@ -7,6 +7,7 @@ import com.guesthouse.shared.auth.service.LoginCommand;
 import com.guesthouse.shared.auth.service.SessionAuthenticationService;
 import com.guesthouse.guestapi.auth.api.GuestSignupResponse;
 import com.guesthouse.guestapi.auth.api.SignupRequest;
+import com.guesthouse.guestapi.auth.api.SignupTermResponse;
 import com.guesthouse.guestapi.auth.service.GuestSignupService;
 import com.guesthouse.shared.auth.session.CurrentSessionUser;
 import com.guesthouse.shared.auth.session.RequireRoles;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.EnumSet;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -59,6 +61,16 @@ public class GuestAuthController {
     public ApiResponse<GuestSignupResponse> signup(@Valid @RequestBody SignupRequest signupRequest) {
         return ApiResponse.success(
                 GuestSignupResponse.from(guestSignupService.signup(signupRequest))
+        );
+    }
+
+    @GetMapping("/signup-terms")
+    public ApiResponse<List<SignupTermResponse>> getSignupTerms() {
+        return ApiResponse.success(
+                guestSignupService.findPublishedRequiredTerms()
+                        .stream()
+                        .map(SignupTermResponse::from)
+                        .toList()
         );
     }
 

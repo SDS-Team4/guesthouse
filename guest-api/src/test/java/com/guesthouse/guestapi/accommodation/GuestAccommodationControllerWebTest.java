@@ -21,6 +21,8 @@ import com.guesthouse.shared.db.roomblock.mapper.RoomBlockQueryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationCommandMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationInventoryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
+import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
 import com.guesthouse.shared.domain.user.UserRole;
@@ -90,13 +92,19 @@ class GuestAccommodationControllerWebTest {
     private UserAccountCommandMapper userAccountCommandMapper;
 
     @MockBean
+    private TermQueryMapper termQueryMapper;
+
+    @MockBean
+    private UserTermAgreementCommandMapper userTermAgreementCommandMapper;
+
+    @MockBean
     private HostRoleRequestQueryMapper hostRoleRequestQueryMapper;
 
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
 
     @Test
-    void searchAccommodationsReturnsClassifiedResultsForAuthenticatedGuest() throws Exception {
+    void searchAccommodationsReturnsClassifiedResultsWithoutLogin() throws Exception {
         when(guestAccommodationReadService.searchAccommodations(
                 "SEOUL",
                 LocalDate.of(2026, 4, 16),
@@ -117,7 +125,6 @@ class GuestAccommodationControllerWebTest {
 
         mockMvc.perform(
                         get("/api/v1/accommodations/search")
-                                .session(guestSession())
                                 .param("region", "SEOUL")
                                 .param("checkInDate", "2026-04-16")
                                 .param("checkOutDate", "2026-04-18")
@@ -163,7 +170,6 @@ class GuestAccommodationControllerWebTest {
 
         mockMvc.perform(
                         get("/api/v1/accommodations/501")
-                                .session(guestSession())
                                 .param("checkInDate", "2026-04-16")
                                 .param("checkOutDate", "2026-04-18")
                                 .param("guestCount", "2")
@@ -174,14 +180,31 @@ class GuestAccommodationControllerWebTest {
     }
 
     @Test
-    void roomTypeCalendarRequiresAuthenticatedGuest() throws Exception {
+    void roomTypeCalendarAllowsAnonymousBrowse() throws Exception {
+        when(guestAccommodationReadService.getRoomTypeCalendar(
+                501L,
+                1001L,
+                LocalDate.of(2026, 4, 16),
+                LocalDate.of(2026, 4, 18)
+        )).thenReturn(new RoomTypeCalendarResponse(
+                501L,
+                1001L,
+                "Standard Double",
+                LocalDate.of(2026, 4, 16),
+                LocalDate.of(2026, 4, 18),
+                List.of(
+                        new RoomTypeCalendarDayResponse(LocalDate.of(2026, 4, 16), 1, false),
+                        new RoomTypeCalendarDayResponse(LocalDate.of(2026, 4, 17), 0, true)
+                )
+        ));
+
         mockMvc.perform(
                         get("/api/v1/accommodations/501/room-types/1001/calendar")
                                 .param("startDate", "2026-04-16")
                                 .param("endDate", "2026-04-18")
                 )
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.days[0].availableRoomCount").value(1));
     }
 
     @Test
@@ -205,18 +228,11 @@ class GuestAccommodationControllerWebTest {
 
         mockMvc.perform(
                         get("/api/v1/accommodations/501/room-types/1001/calendar")
-                                .session(guestSession())
                                 .param("startDate", "2026-04-16")
                                 .param("endDate", "2026-04-18")
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.days[0].availableRoomCount").value(1))
                 .andExpect(jsonPath("$.data.days[1].soldOut").value(true));
-    }
-
-    private MockHttpSession guestSession() {
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute("SESSION_USER", new SessionUser(101L, "guest.demo", "Guest Demo", UserRole.GUEST));
-        return session;
     }
 }

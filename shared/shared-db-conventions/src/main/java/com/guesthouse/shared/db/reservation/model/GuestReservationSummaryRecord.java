@@ -13,6 +13,7 @@ public class GuestReservationSummaryRecord {
     private String accommodationName;
     private Long roomTypeId;
     private String roomTypeName;
+    private Integer guestCount;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private ReservationStatus status;
@@ -66,6 +67,14 @@ public class GuestReservationSummaryRecord {
 
     public void setRoomTypeName(String roomTypeName) {
         this.roomTypeName = roomTypeName;
+    }
+
+    public Integer getGuestCount() {
+        return guestCount;
+    }
+
+    public void setGuestCount(Integer guestCount) {
+        this.guestCount = guestCount;
     }
 
     public LocalDate getCheckInDate() {

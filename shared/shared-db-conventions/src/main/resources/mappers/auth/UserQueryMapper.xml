@@ -40,4 +40,25 @@
             ON s.user_id = u.user_id
         WHERE u.login_id = #{loginId}
     </select>
+
+    <select id="findAuthUserByUserId" resultMap="UserAuthRecordMap">
+        SELECT
+            u.user_id,
+            u.login_id,
+            u.password_hash,
+            u.name,
+            u.email,
+            u.phone,
+            u.role,
+            u.status,
+            s.failed_login_count,
+            s.last_failed_at,
+            s.locked_until,
+            s.last_login_at,
+            s.password_changed_at
+        FROM users u
+        LEFT JOIN user_login_security s
+            ON s.user_id = u.user_id
+        WHERE u.user_id = #{userId}
+    </select>
 </mapper>

@@ -8,4 +8,6 @@ import org.apache.ibatis.annotations.Param;
 public interface UserQueryMapper {
 
     UserAuthRecord findAuthUserByLoginId(@Param("loginId") String loginId);
+
+    UserAuthRecord findAuthUserByUserId(@Param("userId") Long userId);
 }

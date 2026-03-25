@@ -16,6 +16,8 @@ import com.guesthouse.shared.db.reservation.mapper.ReservationInventoryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
 import com.guesthouse.shared.db.roomblock.mapper.RoomBlockCommandMapper;
 import com.guesthouse.shared.db.roomblock.mapper.RoomBlockQueryMapper;
+import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
 import com.guesthouse.shared.db.user.model.AdminUserDetailRecord;
@@ -87,6 +89,12 @@ class AdminUserManagementControllerWebTest {
 
     @MockBean
     private UserAccountCommandMapper userAccountCommandMapper;
+
+    @MockBean
+    private TermQueryMapper termQueryMapper;
+
+    @MockBean
+    private UserTermAgreementCommandMapper userTermAgreementCommandMapper;
 
     @MockBean
     private HostRoleRequestQueryMapper hostRoleRequestQueryMapper;

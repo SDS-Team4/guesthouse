@@ -33,4 +33,11 @@
             last_login_at = #{loginAt}
         WHERE user_id = #{userId}
     </update>
+
+    <update id="markPasswordChanged">
+        UPDATE user_login_security
+        SET
+            password_changed_at = #{changedAt}
+        WHERE user_id = #{userId}
+    </update>
 </mapper>

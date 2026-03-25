@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.term.mapper.TermQueryMapper">
+
+    <resultMap id="PublishedRequiredTermRecordMap" type="com.guesthouse.shared.db.term.model.PublishedRequiredTermRecord">
+        <id property="termId" column="term_id"/>
+        <result property="category" column="category"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="version" column="version"/>
+        <result property="effectiveAt" column="effective_at"/>
+    </resultMap>
+
+    <select id="findPublishedRequiredTerms" resultMap="PublishedRequiredTermRecordMap">
+        SELECT
+            t.term_id,
+            t.category,
+            t.title,
+            t.content,
+            t.version,
+            t.effective_at
+        FROM terms t
+        WHERE t.status = 'PUBLISHED'
+          AND t.is_required = TRUE
+        ORDER BY t.effective_at ASC, t.term_id ASC
+    </select>
+</mapper>

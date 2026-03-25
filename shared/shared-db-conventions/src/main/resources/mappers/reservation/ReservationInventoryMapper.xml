@@ -8,6 +8,7 @@
         <id property="roomTypeId" column="room_type_id"/>
         <result property="accommodationId" column="accommodation_id"/>
         <result property="roomTypeName" column="room_type_name"/>
+        <result property="maxCapacity" column="max_capacity"/>
     </resultMap>
 
     <resultMap id="BlockedRoomRangeRecordMap" type="com.guesthouse.shared.db.reservation.model.BlockedRoomRangeRecord">
@@ -33,7 +34,8 @@
         SELECT
             rt.room_type_id,
             rt.accommodation_id,
-            rt.name AS room_type_name
+            rt.name AS room_type_name,
+            rt.max_capacity
         FROM room_types rt
         JOIN accommodations a
             ON a.accommodation_id = rt.accommodation_id

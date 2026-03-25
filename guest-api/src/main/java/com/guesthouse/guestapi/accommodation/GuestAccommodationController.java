@@ -4,9 +4,7 @@ import com.guesthouse.guestapi.accommodation.api.AccommodationDetailResponse;
 import com.guesthouse.guestapi.accommodation.api.AccommodationSearchResponse;
 import com.guesthouse.guestapi.accommodation.api.RoomTypeCalendarResponse;
 import com.guesthouse.guestapi.accommodation.service.GuestAccommodationReadService;
-import com.guesthouse.shared.auth.session.RequireRoles;
 import com.guesthouse.shared.domain.api.ApiResponse;
-import com.guesthouse.shared.domain.user.UserRole;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,7 +26,6 @@ public class GuestAccommodationController {
     }
 
     @GetMapping("/search")
-    @RequireRoles(UserRole.GUEST)
     public ApiResponse<List<AccommodationSearchResponse>> searchAccommodations(
             @RequestParam(required = false) String region,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkInDate,
@@ -46,7 +43,6 @@ public class GuestAccommodationController {
     }
 
     @GetMapping("/{accommodationId}")
-    @RequireRoles(UserRole.GUEST)
     public ApiResponse<AccommodationDetailResponse> getAccommodationDetail(
             @PathVariable Long accommodationId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkInDate,
@@ -64,7 +60,6 @@ public class GuestAccommodationController {
     }
 
     @GetMapping("/{accommodationId}/room-types/{roomTypeId}/calendar")
-    @RequireRoles(UserRole.GUEST)
     public ApiResponse<RoomTypeCalendarResponse> getRoomTypeCalendar(
             @PathVariable Long accommodationId,
             @PathVariable Long roomTypeId,

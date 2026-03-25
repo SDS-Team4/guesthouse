@@ -17,4 +17,18 @@ public interface UserAccountCommandMapper {
             @Param("expectedRole") UserRole expectedRole,
             @Param("updatedAt") LocalDateTime updatedAt
     );
+
+    int updateUserProfile(
+            @Param("userId") Long userId,
+            @Param("name") String name,
+            @Param("email") String email,
+            @Param("phone") String phone,
+            @Param("updatedAt") LocalDateTime updatedAt
+    );
+
+    int updateUserPasswordHash(
+            @Param("userId") Long userId,
+            @Param("passwordHash") String passwordHash,
+            @Param("updatedAt") LocalDateTime updatedAt
+    );
 }

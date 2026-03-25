@@ -56,6 +56,7 @@
         <result property="accommodationName" column="accommodation_name"/>
         <result property="roomTypeId" column="room_type_id"/>
         <result property="roomTypeName" column="room_type_name"/>
+        <result property="guestCount" column="guest_count"/>
         <result property="checkInDate" column="check_in_date"/>
         <result property="checkOutDate" column="check_out_date"/>
         <result property="status" column="status"/>
@@ -74,6 +75,7 @@
         <result property="accommodationCheckInTime" column="accommodation_check_in_time"/>
         <result property="roomTypeId" column="room_type_id"/>
         <result property="roomTypeName" column="room_type_name"/>
+        <result property="guestCount" column="guest_count"/>
         <result property="checkInDate" column="check_in_date"/>
         <result property="checkOutDate" column="check_out_date"/>
         <result property="status" column="status"/>
@@ -115,6 +117,7 @@
         <result property="accommodationName" column="accommodation_name"/>
         <result property="roomTypeId" column="room_type_id"/>
         <result property="roomTypeName" column="room_type_name"/>
+        <result property="guestCount" column="guest_count"/>
         <result property="checkInDate" column="check_in_date"/>
         <result property="checkOutDate" column="check_out_date"/>
         <result property="status" column="status"/>
@@ -167,6 +170,7 @@
         <result property="accommodationCheckOutTime" column="accommodation_check_out_time"/>
         <result property="roomTypeId" column="room_type_id"/>
         <result property="roomTypeName" column="room_type_name"/>
+        <result property="guestCount" column="guest_count"/>
         <result property="hostUserId" column="host_user_id"/>
         <result property="checkInDate" column="check_in_date"/>
         <result property="checkOutDate" column="check_out_date"/>
@@ -368,6 +372,7 @@
             a.name AS accommodation_name,
             rv.room_type_id,
             rt.name AS room_type_name,
+            rv.guest_count,
             rv.check_in_date,
             rv.check_out_date,
             rv.status,
@@ -394,6 +399,7 @@
             a.check_in_time AS accommodation_check_in_time,
             rv.room_type_id,
             rt.name AS room_type_name,
+            rv.guest_count,
             rv.check_in_date,
             rv.check_out_date,
             rv.status,
@@ -458,6 +464,7 @@
             a.name AS accommodation_name,
             rv.room_type_id,
             rt.name AS room_type_name,
+            rv.guest_count,
             rv.check_in_date,
             rv.check_out_date,
             rv.status,
@@ -556,6 +563,7 @@
             a.check_out_time AS accommodation_check_out_time,
             rv.room_type_id,
             rt.name AS room_type_name,
+            rv.guest_count,
             a.host_user_id,
             rv.check_in_date,
             rv.check_out_date,

@@ -17,6 +17,7 @@ public class GuestReservationDetailRecord {
     private LocalTime accommodationCheckInTime;
     private Long roomTypeId;
     private String roomTypeName;
+    private Integer guestCount;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private ReservationStatus status;
@@ -94,6 +95,14 @@ public class GuestReservationDetailRecord {
 
     public void setRoomTypeName(String roomTypeName) {
         this.roomTypeName = roomTypeName;
+    }
+
+    public Integer getGuestCount() {
+        return guestCount;
+    }
+
+    public void setGuestCount(Integer guestCount) {
+        this.guestCount = guestCount;
     }
 
     public LocalDate getCheckInDate() {
