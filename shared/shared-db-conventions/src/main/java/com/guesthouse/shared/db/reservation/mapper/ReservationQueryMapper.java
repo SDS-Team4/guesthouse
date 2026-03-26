@@ -31,7 +31,7 @@ public interface ReservationQueryMapper {
 
     List<ActiveRoomTypeOptionRecord> findActiveRoomTypeOptions();
 
-    List<AccommodationRoomInventoryRecord> findAccommodationRoomInventoryByRegion(@Param("region") String region);
+    List<AccommodationRoomInventoryRecord> findAccommodationRoomInventoryByRegions(@Param("regions") List<String> regions);
 
     List<AccommodationRoomInventoryRecord> findAccommodationRoomInventoryByAccommodationId(
             @Param("accommodationId") Long accommodationId

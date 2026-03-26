@@ -132,7 +132,10 @@ class GuestReservationControllerWebTest {
                         903L,
                         "GH-20260401100000-123456",
                         501L,
+                        "Seoul Bridge Guesthouse",
                         1001L,
+                        "Standard Double",
+                        2,
                         LocalDate.of(2026, 4, 12),
                         LocalDate.of(2026, 4, 14),
                         ReservationStatus.PENDING,
@@ -156,6 +159,9 @@ class GuestReservationControllerWebTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.reservationId").value(903))
+                .andExpect(jsonPath("$.data.accommodationName").value("Seoul Bridge Guesthouse"))
+                .andExpect(jsonPath("$.data.roomTypeName").value("Standard Double"))
+                .andExpect(jsonPath("$.data.guestCount").value(2))
                 .andExpect(jsonPath("$.data.status").value("PENDING"));
     }
 

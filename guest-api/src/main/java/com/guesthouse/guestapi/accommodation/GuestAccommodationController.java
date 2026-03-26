@@ -27,14 +27,14 @@ public class GuestAccommodationController {
 
     @GetMapping("/search")
     public ApiResponse<List<AccommodationSearchResponse>> searchAccommodations(
-            @RequestParam(required = false) String region,
+            @RequestParam(name = "region", required = false) List<String> regions,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkInDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOutDate,
             @RequestParam int guestCount
     ) {
         return ApiResponse.success(
                 guestAccommodationReadService.searchAccommodations(
-                        region,
+                        regions,
                         checkInDate,
                         checkOutDate,
                         guestCount

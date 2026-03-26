@@ -89,7 +89,11 @@ class ReservationRequestServiceTest {
 
         ReservationInsertParam reservation = reservationCaptor.getValue();
         assertEquals(903L, result.reservationId());
+        assertEquals(501L, result.accommodationId());
+        assertEquals("한강 게스트하우스", result.accommodationName());
+        assertEquals("스탠다드 더블", result.roomTypeName());
         assertEquals(ReservationStatus.PENDING, result.status());
+        assertEquals(2, result.guestCount());
         assertEquals(ReservationStatus.PENDING, reservation.getStatus());
         assertEquals(101L, reservation.getGuestUserId());
         assertEquals(501L, reservation.getAccommodationId());
@@ -161,6 +165,7 @@ class ReservationRequestServiceTest {
         LockedRoomTypeRecord record = new LockedRoomTypeRecord();
         record.setRoomTypeId(1001L);
         record.setAccommodationId(501L);
+        record.setAccommodationName("한강 게스트하우스");
         record.setRoomTypeName("스탠다드 더블");
         record.setMaxCapacity(2);
         return record;

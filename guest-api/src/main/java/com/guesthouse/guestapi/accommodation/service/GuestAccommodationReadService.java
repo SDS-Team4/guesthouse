@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -50,7 +51,7 @@ public class GuestAccommodationReadService {
     }
 
     public List<AccommodationSearchResponse> searchAccommodations(
-            String region,
+            List<String> regions,
             LocalDate checkInDate,
             LocalDate checkOutDate,
             int guestCount
@@ -58,7 +59,7 @@ public class GuestAccommodationReadService {
         validateStayQuery(checkInDate, checkOutDate, guestCount);
 
         List<AccommodationRoomInventoryRecord> inventoryRecords =
-                reservationQueryMapper.findAccommodationRoomInventoryByRegion(normalizeRegion(region));
+                reservationQueryMapper.findAccommodationRoomInventoryByRegions(normalizeRegions(regions));
         if (inventoryRecords.isEmpty()) {
             return List.of();
         }
@@ -288,11 +289,19 @@ public class GuestAccommodationReadService {
         }
     }
 
-    private String normalizeRegion(String region) {
-        if (region == null || region.isBlank()) {
+    private List<String> normalizeRegions(List<String> regions) {
+        if (regions == null || regions.isEmpty()) {
             return null;
         }
-        return region.trim().toUpperCase(Locale.ROOT);
+
+        List<String> normalized = regions.stream()
+                .filter(region -> region != null && !region.isBlank())
+                .flatMap(region -> Arrays.stream(region.split(",")))
+                .map(region -> region.trim().toUpperCase(Locale.ROOT))
+                .filter(region -> !region.isBlank())
+                .distinct()
+                .toList();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private Map<Long, AccommodationContext> buildAccommodationContexts(List<AccommodationRoomInventoryRecord> inventoryRecords) {
@@ -537,10 +546,13 @@ public class GuestAccommodationReadService {
             return AccommodationAvailabilityCategory.AVAILABLE;
         }
 
-        boolean hasMatchingRoomType = computedRoomTypes.stream().anyMatch(ComputedRoomTypeAvailability::matchesGuestCount);
-        return hasMatchingRoomType
-                ? AccommodationAvailabilityCategory.SOLD_OUT
-                : AccommodationAvailabilityCategory.CONDITION_MISMATCH;
+        boolean hasConditionMismatch = computedRoomTypes.stream()
+                .anyMatch(item -> item.availabilityCategory() == AccommodationAvailabilityCategory.CONDITION_MISMATCH);
+        if (hasConditionMismatch) {
+            return AccommodationAvailabilityCategory.CONDITION_MISMATCH;
+        }
+
+        return AccommodationAvailabilityCategory.SOLD_OUT;
     }
 
     private int classificationRank(AccommodationAvailabilityCategory availabilityCategory) {

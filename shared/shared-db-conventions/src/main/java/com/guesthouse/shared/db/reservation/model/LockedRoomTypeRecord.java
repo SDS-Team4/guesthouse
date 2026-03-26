@@ -4,6 +4,7 @@ public class LockedRoomTypeRecord {
 
     private Long roomTypeId;
     private Long accommodationId;
+    private String accommodationName;
     private String roomTypeName;
     private Integer maxCapacity;
 
@@ -21,6 +22,14 @@ public class LockedRoomTypeRecord {
 
     public void setAccommodationId(Long accommodationId) {
         this.accommodationId = accommodationId;
+    }
+
+    public String getAccommodationName() {
+        return accommodationName;
+    }
+
+    public void setAccommodationName(String accommodationName) {
+        this.accommodationName = accommodationName;
     }
 
     public String getRoomTypeName() {

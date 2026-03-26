@@ -7,6 +7,7 @@
     <resultMap id="LockedRoomTypeRecordMap" type="com.guesthouse.shared.db.reservation.model.LockedRoomTypeRecord">
         <id property="roomTypeId" column="room_type_id"/>
         <result property="accommodationId" column="accommodation_id"/>
+        <result property="accommodationName" column="accommodation_name"/>
         <result property="roomTypeName" column="room_type_name"/>
         <result property="maxCapacity" column="max_capacity"/>
     </resultMap>
@@ -34,6 +35,7 @@
         SELECT
             rt.room_type_id,
             rt.accommodation_id,
+            a.name AS accommodation_name,
             rt.name AS room_type_name,
             rt.max_capacity
         FROM room_types rt

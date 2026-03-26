@@ -106,7 +106,7 @@ class GuestAccommodationControllerWebTest {
     @Test
     void searchAccommodationsReturnsClassifiedResultsWithoutLogin() throws Exception {
         when(guestAccommodationReadService.searchAccommodations(
-                "SEOUL",
+                List.of("SEOUL"),
                 LocalDate.of(2026, 4, 16),
                 LocalDate.of(2026, 4, 18),
                 2
@@ -134,6 +134,38 @@ class GuestAccommodationControllerWebTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].accommodationId").value(501))
                 .andExpect(jsonPath("$.data[0].availabilityCategory").value("AVAILABLE"));
+    }
+
+    @Test
+    void searchAccommodationsAcceptsMultipleRegionParams() throws Exception {
+        when(guestAccommodationReadService.searchAccommodations(
+                List.of("SEOUL", "BUSAN"),
+                LocalDate.of(2026, 4, 16),
+                LocalDate.of(2026, 4, 18),
+                2
+        )).thenReturn(List.of(
+                new AccommodationSearchResponse(
+                        501L,
+                        "Seoul Bridge Guesthouse",
+                        "SEOUL",
+                        AccommodationAvailabilityCategory.AVAILABLE,
+                        2,
+                        1,
+                        BigDecimal.valueOf(80000),
+                        BigDecimal.valueOf(80000)
+                )
+        ));
+
+        mockMvc.perform(
+                        get("/api/v1/accommodations/search")
+                                .param("region", "SEOUL", "BUSAN")
+                                .param("checkInDate", "2026-04-16")
+                                .param("checkOutDate", "2026-04-18")
+                                .param("guestCount", "2")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].accommodationId").value(501));
     }
 
     @Test

@@ -59,12 +59,12 @@ class GuestAccommodationReadServiceTest {
         LocalDate checkInDate = LocalDate.of(2026, 4, 16);
         LocalDate checkOutDate = LocalDate.of(2026, 4, 18);
 
-        when(reservationQueryMapper.findAccommodationRoomInventoryByRegion("SEOUL"))
+        when(reservationQueryMapper.findAccommodationRoomInventoryByRegions(List.of("SEOUL")))
                 .thenReturn(List.of(
-                        inventory(501L, "Alpha Stay", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2001L),
-                        inventory(501L, "Alpha Stay", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2002L),
-                        inventory(502L, "Bravo House", 1002L, "Single Compact", 1, 1, BigDecimal.valueOf(120000), 2101L),
-                        inventory(503L, "Charlie Inn", 1003L, "Standard Double", 2, 2, BigDecimal.valueOf(90000), 2201L)
+                        inventory(501L, "Alpha Stay", "SEOUL", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2001L),
+                        inventory(501L, "Alpha Stay", "SEOUL", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2002L),
+                        inventory(502L, "Bravo House", "SEOUL", 1002L, "Single Compact", 1, 1, BigDecimal.valueOf(120000), 2101L),
+                        inventory(503L, "Charlie Inn", "SEOUL", 1003L, "Standard Double", 2, 2, BigDecimal.valueOf(90000), 2201L)
                 ));
         when(reservationQueryMapper.findActiveRoomBlocksByAccommodationIdsForDateRange(
                 List.of(501L, 502L, 503L),
@@ -89,7 +89,7 @@ class GuestAccommodationReadServiceTest {
         ));
 
         List<AccommodationSearchResponse> results =
-                guestAccommodationReadService.searchAccommodations("SEOUL", checkInDate, checkOutDate, 2);
+                guestAccommodationReadService.searchAccommodations(List.of("SEOUL"), checkInDate, checkOutDate, 2);
 
         assertEquals(3, results.size());
         assertEquals("Alpha Stay", results.get(0).accommodationName());
@@ -102,14 +102,119 @@ class GuestAccommodationReadServiceTest {
     }
 
     @Test
+    void searchAccommodationsSupportsMultipleRegionsAsOrFilter() {
+        LocalDate checkInDate = LocalDate.of(2026, 4, 16);
+        LocalDate checkOutDate = LocalDate.of(2026, 4, 18);
+
+        when(reservationQueryMapper.findAccommodationRoomInventoryByRegions(List.of("SEOUL", "BUSAN")))
+                .thenReturn(List.of(
+                        inventory(501L, "Alpha Stay", "SEOUL", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2001L),
+                        inventory(601L, "Busan Port Stay", "BUSAN", 1101L, "Ocean Twin", 2, 2, BigDecimal.valueOf(90000), 3001L)
+                ));
+        when(reservationQueryMapper.findActiveRoomBlocksByAccommodationIdsForDateRange(
+                List.of(501L, 601L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of());
+        when(reservationQueryMapper.findOccupiedRoomNightsByAccommodationIdsForDateRange(
+                List.of(501L, 601L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of());
+        when(pricePolicyQueryMapper.findActivePricePoliciesByAccommodationIdsForDateRange(
+                List.of(501L, 601L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of());
+
+        List<AccommodationSearchResponse> results =
+                guestAccommodationReadService.searchAccommodations(List.of("SEOUL", "BUSAN"), checkInDate, checkOutDate, 2);
+
+        assertEquals(2, results.size());
+        assertEquals("Alpha Stay", results.get(0).accommodationName());
+        assertEquals("Busan Port Stay", results.get(1).accommodationName());
+    }
+
+    @Test
+    void searchAccommodationsAlsoNormalizesCommaSeparatedRegionInput() {
+        LocalDate checkInDate = LocalDate.of(2026, 4, 16);
+        LocalDate checkOutDate = LocalDate.of(2026, 4, 18);
+
+        when(reservationQueryMapper.findAccommodationRoomInventoryByRegions(List.of("SEOUL", "BUSAN")))
+                .thenReturn(List.of(
+                        inventory(501L, "Alpha Stay", "SEOUL", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2001L)
+                ));
+        when(reservationQueryMapper.findActiveRoomBlocksByAccommodationIdsForDateRange(
+                List.of(501L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of());
+        when(reservationQueryMapper.findOccupiedRoomNightsByAccommodationIdsForDateRange(
+                List.of(501L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of());
+        when(pricePolicyQueryMapper.findActivePricePoliciesByAccommodationIdsForDateRange(
+                List.of(501L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of());
+
+        List<AccommodationSearchResponse> results =
+                guestAccommodationReadService.searchAccommodations(List.of("SEOUL,BUSAN"), checkInDate, checkOutDate, 2);
+
+        assertEquals(1, results.size());
+        assertEquals("Alpha Stay", results.get(0).accommodationName());
+    }
+
+    @Test
+    void searchAccommodationsPrefersConditionMismatchOverSoldOutWhenBothExist() {
+        LocalDate checkInDate = LocalDate.of(2026, 4, 16);
+        LocalDate checkOutDate = LocalDate.of(2026, 4, 18);
+
+        when(reservationQueryMapper.findAccommodationRoomInventoryByRegions(List.of("SEOUL")))
+                .thenReturn(List.of(
+                        inventory(701L, "Delta Mix Stay", "SEOUL", 1201L, "Single Compact", 1, 1, BigDecimal.valueOf(70000), 4001L),
+                        inventory(701L, "Delta Mix Stay", "SEOUL", 1202L, "Standard Double", 2, 2, BigDecimal.valueOf(95000), 4002L)
+                ));
+        when(reservationQueryMapper.findActiveRoomBlocksByAccommodationIdsForDateRange(
+                List.of(701L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of());
+        when(reservationQueryMapper.findOccupiedRoomNightsByAccommodationIdsForDateRange(
+                List.of(701L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of(
+                occupied(701L, 4002L, LocalDate.of(2026, 4, 16)),
+                occupied(701L, 4002L, LocalDate.of(2026, 4, 17))
+        ));
+        when(pricePolicyQueryMapper.findActivePricePoliciesByAccommodationIdsForDateRange(
+                List.of(701L),
+                checkInDate,
+                checkOutDate
+        )).thenReturn(List.of());
+
+        List<AccommodationSearchResponse> results =
+                guestAccommodationReadService.searchAccommodations(List.of("SEOUL"), checkInDate, checkOutDate, 2);
+
+        assertEquals(1, results.size());
+        assertEquals("Delta Mix Stay", results.get(0).accommodationName());
+        assertEquals(AccommodationAvailabilityCategory.CONDITION_MISMATCH, results.get(0).availabilityCategory());
+        assertEquals(1, results.get(0).matchingRoomTypeCount());
+        assertEquals(0, results.get(0).availableRoomTypeCount());
+    }
+
+    @Test
     void accommodationDetailAndCalendarReflectBlocksAndOccupiedRooms() {
         LocalDate checkInDate = LocalDate.of(2026, 4, 16);
         LocalDate checkOutDate = LocalDate.of(2026, 4, 18);
 
         when(reservationQueryMapper.findAccommodationRoomInventoryByAccommodationId(501L))
                 .thenReturn(List.of(
-                        inventory(501L, "Alpha Stay", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2001L),
-                        inventory(501L, "Alpha Stay", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2002L)
+                        inventory(501L, "Alpha Stay", "SEOUL", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2001L),
+                        inventory(501L, "Alpha Stay", "SEOUL", 1001L, "Standard Double", 2, 2, BigDecimal.valueOf(80000), 2002L)
                 ));
         when(reservationQueryMapper.findActiveRoomBlocksByAccommodationIdsForDateRange(
                 List.of(501L),
@@ -161,7 +266,7 @@ class GuestAccommodationReadServiceTest {
         AppException exception = assertThrows(
                 AppException.class,
                 () -> guestAccommodationReadService.searchAccommodations(
-                        "SEOUL",
+                        List.of("SEOUL"),
                         LocalDate.of(2026, 3, 31),
                         LocalDate.of(2026, 4, 2),
                         2
@@ -175,6 +280,7 @@ class GuestAccommodationReadServiceTest {
     private AccommodationRoomInventoryRecord inventory(
             Long accommodationId,
             String accommodationName,
+            String region,
             Long roomTypeId,
             String roomTypeName,
             int baseCapacity,
@@ -185,7 +291,7 @@ class GuestAccommodationReadServiceTest {
         AccommodationRoomInventoryRecord record = new AccommodationRoomInventoryRecord();
         record.setAccommodationId(accommodationId);
         record.setAccommodationName(accommodationName);
-        record.setRegion("SEOUL");
+        record.setRegion(region);
         record.setAddress("101 Hangang-daero, Seoul");
         record.setInfoText("Han river stay");
         record.setCheckInTime(LocalTime.of(15, 0));

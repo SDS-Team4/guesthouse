@@ -250,7 +250,7 @@
         ORDER BY a.name, rt.room_type_id
     </select>
 
-    <select id="findAccommodationRoomInventoryByRegion" resultMap="AccommodationRoomInventoryRecordMap">
+    <select id="findAccommodationRoomInventoryByRegions" resultMap="AccommodationRoomInventoryRecordMap">
         SELECT
             a.accommodation_id,
             a.name AS accommodation_name,
@@ -273,11 +273,12 @@
         WHERE a.status = 'ACTIVE'
           AND rt.status = 'ACTIVE'
           AND r.status = 'ACTIVE'
-          AND (
-              #{region} IS NULL
-              OR #{region} = ''
-              OR a.region = #{region}
-          )
+        <if test="regions != null and regions.size() > 0">
+          AND a.region IN
+          <foreach collection="regions" item="region" open="(" separator="," close=")">
+              #{region}
+          </foreach>
+        </if>
         ORDER BY a.name, rt.room_type_id, r.room_id
     </select>
 
