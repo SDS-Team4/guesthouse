@@ -19,8 +19,9 @@
     <update id="registerFailedLogin">
         UPDATE user_login_security
         SET
-            failed_login_count = failed_login_count + 1,
-            last_failed_at = #{failedAt}
+            failed_login_count = #{failedLoginCount},
+            last_failed_at = #{failedAt},
+            locked_until = #{lockedUntil}
         WHERE user_id = #{userId}
     </update>
 

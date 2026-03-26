@@ -10,7 +10,12 @@ public interface UserLoginSecurityMapper {
 
     void insertIfAbsent(@Param("userId") Long userId);
 
-    void registerFailedLogin(@Param("userId") Long userId, @Param("failedAt") LocalDateTime failedAt);
+    void registerFailedLogin(
+            @Param("userId") Long userId,
+            @Param("failedLoginCount") int failedLoginCount,
+            @Param("failedAt") LocalDateTime failedAt,
+            @Param("lockedUntil") LocalDateTime lockedUntil
+    );
 
     void registerSuccessfulLogin(@Param("userId") Long userId, @Param("loginAt") LocalDateTime loginAt);
 

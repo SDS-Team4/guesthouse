@@ -15,13 +15,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.EnumSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,6 +35,8 @@ import static org.mockito.Mockito.when;
 class SessionAuthenticationServiceTest {
 
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+    private static final Clock FIXED_CLOCK =
+            Clock.fixed(Instant.parse("2026-03-26T01:00:00Z"), ZoneId.of("Asia/Seoul"));
 
     @Mock
     private UserQueryMapper userQueryMapper;
@@ -44,7 +51,8 @@ class SessionAuthenticationServiceTest {
         sessionAuthenticationService = new SessionAuthenticationService(
                 userQueryMapper,
                 userLoginSecurityMapper,
-                PASSWORD_ENCODER
+                PASSWORD_ENCODER,
+                FIXED_CLOCK
         );
     }
 
@@ -83,7 +91,38 @@ class SessionAuthenticationServiceTest {
 
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatus());
         verify(userLoginSecurityMapper).insertIfAbsent(101L);
-        verify(userLoginSecurityMapper).registerFailedLogin(eq(101L), any(LocalDateTime.class));
+        verify(userLoginSecurityMapper).registerFailedLogin(
+                eq(101L),
+                eq(1),
+                eq(LocalDateTime.of(2026, 3, 26, 10, 0)),
+                isNull()
+        );
+    }
+
+    @Test
+    void authenticateLocksAccountAfterFiveFailuresWithinFiveMinutes() {
+        UserAuthRecord authRecord = activeUser("guest-demo", UserRole.GUEST, null);
+        authRecord.setFailedLoginCount(4);
+        authRecord.setLastFailedAt(LocalDateTime.of(2026, 3, 26, 9, 57));
+        when(userQueryMapper.findAuthUserByLoginId("guest-demo"))
+                .thenReturn(authRecord)
+                .thenReturn(authRecord);
+
+        AppException exception = assertThrows(
+                AppException.class,
+                () -> sessionAuthenticationService.authenticate(
+                        new LoginCommand("guest-demo", "wrong-pass"),
+                        EnumSet.of(UserRole.GUEST)
+                )
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatus());
+        verify(userLoginSecurityMapper).registerFailedLogin(
+                eq(101L),
+                eq(5),
+                eq(LocalDateTime.of(2026, 3, 26, 10, 0)),
+                eq(LocalDateTime.of(2026, 3, 26, 10, 5))
+        );
     }
 
     @Test
@@ -107,7 +146,7 @@ class SessionAuthenticationServiceTest {
 
         assertEquals(HttpStatus.LOCKED, exception.getStatus());
         verify(userLoginSecurityMapper).insertIfAbsent(101L);
-        verify(userLoginSecurityMapper, times(0)).registerFailedLogin(eq(101L), any(LocalDateTime.class));
+        verify(userLoginSecurityMapper, times(0)).registerFailedLogin(eq(101L), anyInt(), any(LocalDateTime.class), any());
         verify(userLoginSecurityMapper, times(0)).registerSuccessfulLogin(eq(101L), any(LocalDateTime.class));
     }
 

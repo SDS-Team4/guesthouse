@@ -13,27 +13,35 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Set;
 
 @Service
 public class SessionAuthenticationService {
 
+    private static final int LOGIN_FAILURE_WINDOW_MINUTES = 5;
+    private static final int LOGIN_FAILURE_LOCK_THRESHOLD = 5;
+    private static final int LOGIN_LOCK_MINUTES = 5;
+
     private final UserQueryMapper userQueryMapper;
     private final UserLoginSecurityMapper userLoginSecurityMapper;
     private final PasswordEncoder passwordEncoder;
+    private final Clock clock;
 
     public SessionAuthenticationService(
             UserQueryMapper userQueryMapper,
             UserLoginSecurityMapper userLoginSecurityMapper,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            Clock clock
     ) {
         this.userQueryMapper = userQueryMapper;
         this.userLoginSecurityMapper = userLoginSecurityMapper;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = AppException.class)
     public SessionUser authenticate(LoginCommand loginCommand, Set<UserRole> allowedRoles) {
         UserAuthRecord authRecord = userQueryMapper.findAuthUserByLoginId(loginCommand.loginId());
         if (authRecord == null) {
@@ -47,7 +55,7 @@ public class SessionAuthenticationService {
         userLoginSecurityMapper.insertIfAbsent(authRecord.getUserId());
         authRecord = userQueryMapper.findAuthUserByLoginId(loginCommand.loginId());
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         if (authRecord.getLockedUntil() != null && authRecord.getLockedUntil().isAfter(now)) {
             throw new AppException(
                     ErrorCode.ACCOUNT_LOCKED,
@@ -57,7 +65,7 @@ public class SessionAuthenticationService {
         }
 
         if (!passwordEncoder.matches(loginCommand.password(), authRecord.getPasswordHash())) {
-            userLoginSecurityMapper.registerFailedLogin(authRecord.getUserId(), now);
+            registerFailedLogin(authRecord, now);
             throw new AppException(
                     ErrorCode.INVALID_CREDENTIALS,
                     HttpStatus.UNAUTHORIZED,
@@ -80,6 +88,25 @@ public class SessionAuthenticationService {
                 authRecord.getLoginId(),
                 authRecord.getName(),
                 authRecord.getRole()
+        );
+    }
+
+    private void registerFailedLogin(UserAuthRecord authRecord, LocalDateTime failedAt) {
+        LocalDateTime windowStart = failedAt.minusMinutes(LOGIN_FAILURE_WINDOW_MINUTES);
+        boolean withinWindow = authRecord.getLastFailedAt() != null
+                && !authRecord.getLastFailedAt().isBefore(windowStart);
+        int nextFailedLoginCount = withinWindow
+                ? authRecord.getFailedLoginCount() + 1
+                : 1;
+        LocalDateTime lockedUntil = nextFailedLoginCount >= LOGIN_FAILURE_LOCK_THRESHOLD
+                ? failedAt.plusMinutes(LOGIN_LOCK_MINUTES)
+                : null;
+
+        userLoginSecurityMapper.registerFailedLogin(
+                authRecord.getUserId(),
+                nextFailedLoginCount,
+                failedAt,
+                lockedUntil
         );
     }
 }
