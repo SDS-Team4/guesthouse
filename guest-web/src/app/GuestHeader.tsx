@@ -1,4 +1,5 @@
 import { GuestPage } from './guestPages';
+import daumStayMark from '../assets/daum-stay-mark.png';
 
 type GuestHeaderProps = {
   signedIn: boolean;
@@ -15,7 +16,8 @@ export function GuestHeader({
     <header className="guest-header">
       <div className="guest-header-inner">
         <button type="button" className="guest-header-brand" onClick={() => onNavigate('search')}>
-          Guesthouse
+          <img src={daumStayMark} alt="" className="guest-header-brand-image" aria-hidden="true" />
+          <span className="guest-header-brand-text">DAUM STAY</span>
         </button>
 
         <div className="guest-header-actions">

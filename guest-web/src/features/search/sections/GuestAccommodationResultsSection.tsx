@@ -59,23 +59,34 @@ export function GuestAccommodationResultsSection({
 }: GuestAccommodationResultsSectionProps) {
   const groupedResults = groupResults(searchResults);
 
-  function renderSection(title: string, results: AccommodationSearchResult[]) {
+  function renderSection(
+    title: string,
+    results: AccommodationSearchResult[],
+    tone: 'available' | 'mismatch' | 'sold-out'
+  ) {
     if (results.length === 0) {
       return null;
     }
 
     return (
-      <section className="result-group" key={title}>
-        <div className="result-group-header">
-          <h3>{title}</h3>
-          <span>{results.length}개</span>
-        </div>
+      <section className={`result-group result-group-${tone}`} key={title}>
+        {tone !== 'available' ? (
+          <div className="result-group-header">
+            <h3>{title}</h3>
+          </div>
+        ) : null}
         <div className="result-list">
           {results.map((result) => (
             <button
               key={result.accommodationId}
               type="button"
-              className={`result-card ${result.accommodationId === selectedAccommodationId ? 'result-card-active' : ''}`}
+              className={[
+                'result-card',
+                `result-card-${tone}`,
+                result.accommodationId === selectedAccommodationId ? 'result-card-active' : ''
+              ]
+                .filter(Boolean)
+                .join(' ')}
               onClick={() => onOpenAccommodation(result.accommodationId)}
             >
               <div className="result-card-header">
@@ -123,9 +134,9 @@ export function GuestAccommodationResultsSection({
         </div>
       ) : (
         <div className="result-group-list">
-          {renderSection('조건에 맞는 방', groupedResults.available)}
-          {renderSection('조건에 맞지 않는 방', groupedResults.mismatch)}
-          {renderSection('sold out', groupedResults.soldOut)}
+          {renderSection('조건에 맞는 방', groupedResults.available, 'available')}
+          {renderSection('여기서부터는 검색 조건에 맞지 않아요', groupedResults.mismatch, 'mismatch')}
+          {renderSection('sold out', groupedResults.soldOut, 'sold-out')}
         </div>
       )}
     </section>

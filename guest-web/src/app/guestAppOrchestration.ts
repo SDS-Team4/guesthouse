@@ -71,7 +71,7 @@ export async function loadCurrentGuestTask(args: {
 
   try {
     setUser(await fetchCurrentGuest());
-    setCurrentPage('mypage');
+    setCurrentPage('search');
   } catch {
     setUser(null);
   }

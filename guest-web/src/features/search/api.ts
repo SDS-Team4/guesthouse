@@ -4,6 +4,7 @@ import {
   RoomTypeCalendar
 } from '../guest-api-types';
 import {
+  GuestAccommodationRegionsResponseContract,
   GuestAccommodationDetailResponseContract,
   GuestRoomTypeCalendarResponseContract,
   GuestSearchResultResponseContract
@@ -133,6 +134,17 @@ function normalizeRoomTypeCalendar(
       soldOut: day.soldOut
     }))
   };
+}
+
+export async function fetchAccommodationRegions() {
+  const response = await apiRequest<GuestAccommodationRegionsResponseContract>(
+    '/api/v1/accommodations/regions',
+    { method: 'GET' }
+  );
+
+  return response
+    .map((region) => region.trim())
+    .filter((region) => region.length > 0);
 }
 
 export async function searchAccommodations(searchForm: SearchFormState) {

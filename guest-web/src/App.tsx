@@ -52,6 +52,7 @@ import { GuestReservationDetailSection } from './features/reservations/sections/
 import { PlaceholderPage } from './features/recovery/pages/PlaceholderPage';
 import {
   fetchAccommodationDetail,
+  fetchAccommodationRegions,
   fetchRoomTypeCalendar,
   searchAccommodations
 } from './features/search/api';
@@ -91,6 +92,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [signupForm, setSignupForm] = useState<SignupFormState>(defaultSignupForm);
   const [searchForm, setSearchForm] = useState<SearchFormState>(defaultSearchForm);
+  const [searchRegionOptions, setSearchRegionOptions] = useState<string[]>([...guestSearchRegionOptions]);
   const [searchResults, setSearchResults] = useState<AccommodationSearchResult[]>([]);
   const [selectedAccommodationId, setSelectedAccommodationId] = useState<number | null>(null);
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<number | null>(null);
@@ -126,6 +128,7 @@ export default function App() {
   useEffect(() => {
     void loadSignupTerms();
     void loadCurrentGuest();
+    void loadSearchRegionOptions();
   }, []);
 
   useEffect(() => {
@@ -150,6 +153,19 @@ export default function App() {
       setUser,
       setCurrentPage
     });
+  }
+
+  async function loadSearchRegionOptions() {
+    try {
+      const regions = await fetchAccommodationRegions();
+      if (regions.length > 0) {
+        setSearchRegionOptions(regions);
+      } else {
+        setSearchRegionOptions([...guestSearchRegionOptions]);
+      }
+    } catch {
+      setSearchRegionOptions([...guestSearchRegionOptions]);
+    }
   }
 
   async function loadReservations() {
@@ -458,7 +474,7 @@ export default function App() {
       {currentPage === 'search' ? (
         <GuestSearchHomeSection
           businessToday={businessToday}
-          regionOptions={guestSearchRegionOptions}
+          regionOptions={searchRegionOptions}
           searchForm={searchForm}
           searching={searching}
           onSearchSubmit={handleSearchSubmit}
@@ -473,7 +489,7 @@ export default function App() {
           onSelectAllRegions={() =>
             setSearchForm((prev) => ({
               ...prev,
-              regions: [...guestSearchRegionOptions]
+              regions: [...searchRegionOptions]
             }))
           }
           onClearRegions={() =>

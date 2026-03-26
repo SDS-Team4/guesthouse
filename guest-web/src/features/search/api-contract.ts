@@ -5,6 +5,8 @@ export type GuestSearchRequestContract = {
   guestCount: number;
 };
 
+export type GuestAccommodationRegionsResponseContract = string[];
+
 export type GuestSearchResultResponseContract = {
   accommodationId: number;
   accommodationName: string;

@@ -23,12 +23,6 @@ type GuestSearchHomeSectionProps = {
 
 function formatRegionLabel(region: string) {
   switch (region) {
-    case 'SEOUL':
-      return '서울';
-    case 'BUSAN':
-      return '부산';
-    case 'JEONJU':
-      return '전주';
     default:
       return region;
   }
@@ -47,13 +41,14 @@ export function GuestSearchHomeSection({
   onCheckInDateChange,
   onCheckOutDateChange
 }: GuestSearchHomeSectionProps) {
-  const allSelected = searchForm.regions.length === regionOptions.length;
+  const hasRegionOptions = regionOptions.length > 0;
+  const allSelected = hasRegionOptions && searchForm.regions.length === regionOptions.length;
 
   return (
     <section className="search-home-screen">
       <div className="search-home-hero">
         <div className="search-home-copy">
-          <span className="search-home-eyebrow">Guesthouse stay</span>
+          <span className="search-home-eyebrow">DAUM STAY</span>
           <h1>
             원하는 일정과 인원으로
             <br />
@@ -65,33 +60,39 @@ export function GuestSearchHomeSection({
           <div className="search-pill-field search-pill-field-regions">
             <div className="search-pill-head">
               <span>지역</span>
-              <div className="search-pill-actions">
-                <button
-                  type="button"
-                  className={`search-mini-action ${allSelected ? 'search-mini-action-active' : ''}`}
-                  onClick={onSelectAllRegions}
-                >
-                  전체 선택
-                </button>
-                <button type="button" className="search-mini-action" onClick={onClearRegions}>
-                  전체 취소
-                </button>
-              </div>
+              {hasRegionOptions ? (
+                <div className="search-pill-actions">
+                  <button
+                    type="button"
+                    className={`search-mini-action ${allSelected ? 'search-mini-action-active' : ''}`}
+                    onClick={onSelectAllRegions}
+                  >
+                    전체 선택
+                  </button>
+                  <button type="button" className="search-mini-action" onClick={onClearRegions}>
+                    전체 취소
+                  </button>
+                </div>
+              ) : null}
             </div>
             <div className="search-region-options">
-              {regionOptions.map((region) => {
-                const selected = searchForm.regions.includes(region);
-                return (
-                  <button
-                    key={region}
-                    type="button"
-                    className={selected ? 'search-region-chip search-region-chip-active' : 'search-region-chip'}
-                    onClick={() => onToggleRegion(region)}
-                  >
-                    {formatRegionLabel(region)}
-                  </button>
-                );
-              })}
+              {hasRegionOptions ? (
+                regionOptions.map((region) => {
+                  const selected = searchForm.regions.includes(region);
+                  return (
+                    <button
+                      key={region}
+                      type="button"
+                      className={selected ? 'search-region-chip search-region-chip-active' : 'search-region-chip'}
+                      onClick={() => onToggleRegion(region)}
+                    >
+                      {formatRegionLabel(region)}
+                    </button>
+                  );
+                })
+              ) : (
+                <span className="search-region-empty">전체 지역 검색은 가능하지만 선택 가능한 지역 목록을 아직 불러오지 못했습니다.</span>
+              )}
             </div>
           </div>
 

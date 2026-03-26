@@ -10,7 +10,7 @@ export type SearchFormState = {
   checkOutDate: string;
 };
 
-export const guestSearchRegionOptions = ['SEOUL', 'BUSAN', 'JEONJU'] as const;
+export const guestSearchRegionOptions = ['서울', '부산', '제주', '강원', '경주', '전주'] as const;
 
 export type SignupFormState = {
   loginId: string;
