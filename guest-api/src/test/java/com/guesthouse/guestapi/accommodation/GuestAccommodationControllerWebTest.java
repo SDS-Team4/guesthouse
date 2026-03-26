@@ -169,6 +169,18 @@ class GuestAccommodationControllerWebTest {
     }
 
     @Test
+    void getActiveAccommodationRegionsReturnsDistinctRegionList() throws Exception {
+        when(guestAccommodationReadService.getActiveAccommodationRegions())
+                .thenReturn(List.of("강원", "경주", "부산", "서울", "전주", "제주"));
+
+        mockMvc.perform(get("/api/v1/accommodations/regions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0]").value("강원"))
+                .andExpect(jsonPath("$.data[5]").value("제주"));
+    }
+
+    @Test
     void accommodationDetailReturnsRoomTypeAvailability() throws Exception {
         when(guestAccommodationReadService.getAccommodationDetail(
                 501L,

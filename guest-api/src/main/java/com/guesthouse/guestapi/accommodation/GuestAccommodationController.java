@@ -42,6 +42,11 @@ public class GuestAccommodationController {
         );
     }
 
+    @GetMapping("/regions")
+    public ApiResponse<List<String>> getActiveAccommodationRegions() {
+        return ApiResponse.success(guestAccommodationReadService.getActiveAccommodationRegions());
+    }
+
     @GetMapping("/{accommodationId}")
     public ApiResponse<AccommodationDetailResponse> getAccommodationDetail(
             @PathVariable Long accommodationId,

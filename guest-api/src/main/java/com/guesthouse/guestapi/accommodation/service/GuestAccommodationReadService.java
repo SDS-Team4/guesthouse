@@ -106,7 +106,15 @@ public class GuestAccommodationReadService {
                 ))
                 .sorted(Comparator
                         .comparingInt((AccommodationSearchResponse response) -> classificationRank(response.availabilityCategory()))
-                        .thenComparing(AccommodationSearchResponse::accommodationName))
+                .thenComparing(AccommodationSearchResponse::accommodationName))
+                .toList();
+    }
+
+    public List<String> getActiveAccommodationRegions() {
+        return reservationQueryMapper.findActiveAccommodationRegions().stream()
+                .filter(region -> region != null && !region.isBlank())
+                .map(String::trim)
+                .distinct()
                 .toList();
     }
 
@@ -546,13 +554,11 @@ public class GuestAccommodationReadService {
             return AccommodationAvailabilityCategory.AVAILABLE;
         }
 
-        boolean hasConditionMismatch = computedRoomTypes.stream()
-                .anyMatch(item -> item.availabilityCategory() == AccommodationAvailabilityCategory.CONDITION_MISMATCH);
-        if (hasConditionMismatch) {
-            return AccommodationAvailabilityCategory.CONDITION_MISMATCH;
-        }
-
-        return AccommodationAvailabilityCategory.SOLD_OUT;
+        boolean hasMatchingRoomType = computedRoomTypes.stream()
+                .anyMatch(ComputedRoomTypeAvailability::matchesGuestCount);
+        return hasMatchingRoomType
+                ? AccommodationAvailabilityCategory.SOLD_OUT
+                : AccommodationAvailabilityCategory.CONDITION_MISMATCH;
     }
 
     private int classificationRank(AccommodationAvailabilityCategory availabilityCategory) {

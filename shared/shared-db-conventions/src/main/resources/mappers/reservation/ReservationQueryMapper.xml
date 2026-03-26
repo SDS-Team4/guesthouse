@@ -250,6 +250,15 @@
         ORDER BY a.name, rt.room_type_id
     </select>
 
+    <select id="findActiveAccommodationRegions" resultType="string">
+        SELECT DISTINCT a.region
+        FROM accommodations a
+        WHERE a.status = 'ACTIVE'
+          AND a.region IS NOT NULL
+          AND TRIM(a.region) != ''
+        ORDER BY a.region
+    </select>
+
     <select id="findAccommodationRoomInventoryByRegions" resultMap="AccommodationRoomInventoryRecordMap">
         SELECT
             a.accommodation_id,

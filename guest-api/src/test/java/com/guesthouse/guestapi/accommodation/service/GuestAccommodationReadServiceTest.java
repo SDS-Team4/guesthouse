@@ -168,7 +168,7 @@ class GuestAccommodationReadServiceTest {
     }
 
     @Test
-    void searchAccommodationsPrefersConditionMismatchOverSoldOutWhenBothExist() {
+    void searchAccommodationsPrefersSoldOutOverConditionMismatchWhenBothExist() {
         LocalDate checkInDate = LocalDate.of(2026, 4, 16);
         LocalDate checkOutDate = LocalDate.of(2026, 4, 18);
 
@@ -201,7 +201,7 @@ class GuestAccommodationReadServiceTest {
 
         assertEquals(1, results.size());
         assertEquals("Delta Mix Stay", results.get(0).accommodationName());
-        assertEquals(AccommodationAvailabilityCategory.CONDITION_MISMATCH, results.get(0).availabilityCategory());
+        assertEquals(AccommodationAvailabilityCategory.SOLD_OUT, results.get(0).availabilityCategory());
         assertEquals(1, results.get(0).matchingRoomTypeCount());
         assertEquals(0, results.get(0).availableRoomTypeCount());
     }
