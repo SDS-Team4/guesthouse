@@ -600,3 +600,69 @@
   host asset CRUD,
   host-side reservation cancel,
   admin audit/system-log/notice operations.
+
+## Latest Implementation Note (2026-03-26 / guest search result grouping)
+
+- Scope completed in this pass:
+  a UI-only refinement within `M2` guest search results, while keeping the existing backend search classification logic unchanged.
+- Traceability:
+  `REQ-F-036 ~ REQ-F-049`,
+  `REQ-NF-001`,
+  `REQ-NF-002`.
+- Implemented:
+  guest search results are now rendered in ordered sections:
+  `조건에 맞는 방`,
+  `조건에 맞지 않는 방`,
+  `sold out`.
+- Current classification source:
+  the frontend still uses the existing backend `availabilityCategory` values as-is:
+  `AVAILABLE`,
+  `CONDITION_MISMATCH`,
+  `SOLD_OUT`.
+- Important limitation:
+  this is intentionally a UI-first interim step.
+  The backend rule has not yet been changed to prefer `CONDITION_MISMATCH` over `SOLD_OUT` when both conditions coexist across room types in the same accommodation.
+- Validation completed:
+  `pnpm --filter guest-web exec tsc --noEmit`.
+
+## Latest Implementation Note (2026-03-26 / guest search classification hardening)
+
+- Scope completed in this pass:
+  a narrow `M2` backend refinement for guest search classification semantics.
+- Traceability:
+  `REQ-F-036 ~ REQ-F-049`,
+  `REQ-NF-001`,
+  `REQ-NF-002`.
+- Implemented:
+  if an accommodation has no `AVAILABLE` room type, but has both
+  `CONDITION_MISMATCH` and `SOLD_OUT` room types, the accommodation is now classified as `CONDITION_MISMATCH`.
+- UI consequence:
+  the existing grouped guest search list remains unchanged and now places those accommodations into the `조건에 맞지 않는 방` section automatically.
+- Validation completed:
+  `pnpm --filter guest-web exec tsc --noEmit`.
+- Validation pending in local sandbox:
+  `:guest-api:test --tests com.guesthouse.guestapi.accommodation.service.GuestAccommodationReadServiceTest`
+  was attempted, but Gradle wrapper lockfile creation failed in the current sandbox environment.
+
+## Latest Implementation Note (2026-03-26 / guest mypage page split)
+
+- Scope completed in this pass:
+  a narrow guest-web UI restructuring for account-area page separation and detail-card action alignment.
+- Traceability:
+  `REQ-F-001 ~ REQ-F-035`,
+  `REQ-F-062 ~ REQ-F-075`,
+  `REQ-NF-001`,
+  `REQ-NF-002`.
+- Implemented:
+  guest mypage now routes into independent pages for
+  `기본 정보`,
+  `비밀번호 변경`,
+  `호스트 권한 요청`
+  instead of keeping all account content in one combined screen.
+- UI consequence:
+  the left workspace panel now lists these account pages independently,
+  and the mypage hub links directly into each page.
+- Additional UI refinement:
+  room-type detail actions were moved into the card grid and resized into a smaller horizontal layout.
+- Validation completed:
+  `pnpm --filter guest-web exec tsc --noEmit`.
