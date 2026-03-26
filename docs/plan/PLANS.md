@@ -635,14 +635,13 @@
   `REQ-NF-002`.
 - Implemented:
   if an accommodation has no `AVAILABLE` room type, but has both
-  `CONDITION_MISMATCH` and `SOLD_OUT` room types, the accommodation is now classified as `CONDITION_MISMATCH`.
+  `CONDITION_MISMATCH` and `SOLD_OUT` room types, the accommodation is now classified as `SOLD_OUT`.
 - UI consequence:
-  the existing grouped guest search list remains unchanged and now places those accommodations into the `조건에 맞지 않는 방` section automatically.
+  the existing grouped guest search list remains unchanged and now places those accommodations into the `sold out` section automatically.
 - Validation completed:
   `pnpm --filter guest-web exec tsc --noEmit`.
-- Validation pending in local sandbox:
-  `:guest-api:test --tests com.guesthouse.guestapi.accommodation.service.GuestAccommodationReadServiceTest`
-  was attempted, but Gradle wrapper lockfile creation failed in the current sandbox environment.
+- Validation target:
+  `:guest-api:test --tests com.guesthouse.guestapi.accommodation.service.GuestAccommodationReadServiceTest`.
 
 ## Latest Implementation Note (2026-03-26 / guest mypage page split)
 
@@ -666,3 +665,43 @@
   room-type detail actions were moved into the card grid and resized into a smaller horizontal layout.
 - Validation completed:
   `pnpm --filter guest-web exec tsc --noEmit`.
+
+## Latest Implementation Note (2026-03-26 / guest result emphasis and reservation list tabs)
+
+- Scope in for this pass:
+  a narrow guest-web presentation refinement for search-result status emphasis and mypage reservation-list segmentation.
+- Traceability:
+  `REQ-F-036 ~ REQ-F-049`,
+  `REQ-F-062 ~ REQ-F-069`,
+  `REQ-NF-001`,
+  `REQ-NF-002`.
+- Target behavior:
+  search results should visually distinguish `조건에 맞는 방`, `조건에 맞지 않는 방`, and `sold out` more aggressively,
+  and the mypage reservation list should switch between reservation-status groups through tab-like controls.
+- UI consequence:
+  guest search cards can use stronger tone separation by availability category,
+  and reservation list browsing will follow the same tab pattern already used in the account area.
+- Validation target:
+  `pnpm --filter guest-web exec tsc --noEmit`.
+
+## Latest Implementation Note (2026-03-26 / guest active-region option sourcing)
+
+- Scope in for this pass:
+  a narrow guest browse read-model refinement so the search-region selector no longer depends only on frontend constants.
+- Traceability:
+  `REQ-F-036 ~ REQ-F-049`,
+  `REQ-NF-001`,
+  `REQ-NF-002`.
+- Implemented target:
+  add a guest read-only API that returns distinct active accommodation regions,
+  and let `guest-web` load those options at runtime as the primary source of truth with a bounded fallback region set.
+- Scope out:
+  no search-result DTO redesign,
+  no booking-flow mutation changes,
+  no ops-web changes.
+- UI consequence:
+  the guest search page follows DB-backed active regions as its primary source of truth,
+  while falling back to the existing six guest-facing regions if the read API fails.
+- Validation target:
+  `pnpm --filter guest-web exec tsc --noEmit`,
+  `:guest-api:test --tests com.guesthouse.guestapi.accommodation.GuestAccommodationControllerWebTest`.
