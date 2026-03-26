@@ -1,0 +1,16 @@
+export type GuestPage =
+  | 'search'
+  | 'accommodations'
+  | 'accommodation-detail'
+  | 'reservation-request'
+  | 'reservation-complete'
+  | 'reservation-list'
+  | 'reservation-detail'
+  | 'login'
+  | 'signup'
+  | 'mypage'
+  | 'account-profile'
+  | 'account-password'
+  | 'account-host-role-request'
+  | 'find-id'
+  | 'find-password';
