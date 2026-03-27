@@ -9,6 +9,11 @@ public class AuthRateLimitInterceptor implements HandlerInterceptor {
 
     private static final String LOGIN_PATH = "/api/v1/auth/login";
     private static final String SIGNUP_PATH = "/api/v1/auth/signup";
+    private static final String FIND_ID_REQUEST_PATH = "/api/v1/auth/find-id/request";
+    private static final String FIND_ID_VERIFY_PATH = "/api/v1/auth/find-id/verify";
+    private static final String RESET_PASSWORD_REQUEST_PATH = "/api/v1/auth/reset-password/request";
+    private static final String RESET_PASSWORD_VERIFY_PATH = "/api/v1/auth/reset-password/verify";
+    private static final String RESET_PASSWORD_CONFIRM_PATH = "/api/v1/auth/reset-password/confirm";
 
     private final AuthRateLimitService authRateLimitService;
 
@@ -28,6 +33,12 @@ public class AuthRateLimitInterceptor implements HandlerInterceptor {
             authRateLimitService.assertLoginAllowed(clientIp);
         } else if (SIGNUP_PATH.equals(requestUri)) {
             authRateLimitService.assertSignupAllowed(clientIp);
+        } else if (FIND_ID_REQUEST_PATH.equals(requestUri) || RESET_PASSWORD_REQUEST_PATH.equals(requestUri)) {
+            authRateLimitService.assertRecoveryRequestAllowed(clientIp);
+        } else if (FIND_ID_VERIFY_PATH.equals(requestUri)
+                || RESET_PASSWORD_VERIFY_PATH.equals(requestUri)
+                || RESET_PASSWORD_CONFIRM_PATH.equals(requestUri)) {
+            authRateLimitService.assertRecoveryVerifyAllowed(clientIp);
         }
 
         return true;

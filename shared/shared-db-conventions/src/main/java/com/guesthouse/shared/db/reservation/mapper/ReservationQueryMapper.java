@@ -82,6 +82,15 @@ public interface ReservationQueryMapper {
             @Param("currentDate") LocalDate currentDate
     );
 
+    List<OpsReservationListRecord> findOpsReservationsForCalendar(
+            @Param("hostUserId") Long hostUserId,
+            @Param("isAdmin") boolean isAdmin,
+            @Param("accommodationId") Long accommodationId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("currentDate") LocalDate currentDate
+    );
+
     OpsReservationDetailRecord findOpsReservationDetailByReservationId(@Param("reservationId") Long reservationId);
 
     List<OpsReservationNightRecord> findOpsReservationNightsByReservationIds(

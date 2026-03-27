@@ -6,10 +6,14 @@ import com.guesthouse.guestapi.accommodation.api.AccommodationSearchResponse;
 import com.guesthouse.guestapi.accommodation.api.RoomTypeAvailabilityResponse;
 import com.guesthouse.guestapi.accommodation.api.RoomTypeCalendarDayResponse;
 import com.guesthouse.guestapi.accommodation.api.RoomTypeCalendarResponse;
+import com.guesthouse.guestapi.accommodation.config.GuestPublicReadProperties;
 import com.guesthouse.guestapi.accommodation.service.GuestAccommodationReadService;
+import com.guesthouse.guestapi.accommodation.service.GuestPublicReadRateLimitService;
 import com.guesthouse.shared.auth.config.AuthWebMvcConfigurer;
+import com.guesthouse.shared.auth.service.AccountRecoveryService;
 import com.guesthouse.shared.auth.session.SessionUser;
 import com.guesthouse.shared.db.auth.mapper.UserLoginSecurityMapper;
+import com.guesthouse.shared.db.auth.mapper.PasswordRecoveryVerificationMapper;
 import com.guesthouse.shared.db.auth.mapper.UserQueryMapper;
 import com.guesthouse.shared.db.audit.mapper.AuditLogMapper;
 import com.guesthouse.shared.db.hostrole.mapper.HostRoleRequestCommandMapper;
@@ -27,6 +31,7 @@ import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
 import com.guesthouse.shared.domain.user.UserRole;
 import com.guesthouse.shared.domain.web.GlobalExceptionHandler;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -56,10 +61,22 @@ class GuestAccommodationControllerWebTest {
     private GuestAccommodationReadService guestAccommodationReadService;
 
     @MockBean
+    private GuestPublicReadRateLimitService guestPublicReadRateLimitService;
+
+    @MockBean
+    private GuestPublicReadProperties guestPublicReadProperties;
+
+    @MockBean
+    private AccountRecoveryService accountRecoveryService;
+
+    @MockBean
     private UserQueryMapper userQueryMapper;
 
     @MockBean
     private UserLoginSecurityMapper userLoginSecurityMapper;
+
+    @MockBean
+    private PasswordRecoveryVerificationMapper passwordRecoveryVerificationMapper;
 
     @MockBean
     private ReservationInventoryMapper reservationInventoryMapper;
@@ -103,6 +120,12 @@ class GuestAccommodationControllerWebTest {
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
 
+    @BeforeEach
+    void setUp() {
+        when(guestPublicReadProperties.getDefaultPageSize()).thenReturn(20);
+        when(guestPublicReadProperties.getMaxPageSize()).thenReturn(50);
+    }
+
     @Test
     void searchAccommodationsReturnsClassifiedResultsWithoutLogin() throws Exception {
         when(guestAccommodationReadService.searchAccommodations(
@@ -134,6 +157,20 @@ class GuestAccommodationControllerWebTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].accommodationId").value(501))
                 .andExpect(jsonPath("$.data[0].availabilityCategory").value("AVAILABLE"));
+    }
+
+    @Test
+    void searchAccommodationsRejectsOversizedPageRequest() throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/accommodations/search")
+                                .param("region", "SEOUL")
+                                .param("checkInDate", "2026-04-16")
+                                .param("checkOutDate", "2026-04-18")
+                                .param("guestCount", "2")
+                                .param("size", "51")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
     }
 
     @Test

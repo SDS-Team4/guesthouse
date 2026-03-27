@@ -13,6 +13,16 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 
 public class SessionUserArgumentResolver implements HandlerMethodArgumentResolver {
 
+    private final SessionIntegrityService sessionIntegrityService;
+
+    public SessionUserArgumentResolver() {
+        this(null);
+    }
+
+    public SessionUserArgumentResolver(SessionIntegrityService sessionIntegrityService) {
+        this.sessionIntegrityService = sessionIntegrityService;
+    }
+
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.hasParameterAnnotation(CurrentSessionUser.class)
@@ -35,6 +45,10 @@ public class SessionUserArgumentResolver implements HandlerMethodArgumentResolve
 
         if (sessionUser == null && annotation != null && annotation.required()) {
             throw new AppException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+        }
+
+        if (sessionUser != null && session != null && sessionIntegrityService != null) {
+            sessionIntegrityService.validate(session, sessionUser);
         }
 
         return sessionUser;

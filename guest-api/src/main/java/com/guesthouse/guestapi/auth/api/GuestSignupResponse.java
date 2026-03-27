@@ -7,7 +7,6 @@ import com.guesthouse.shared.domain.user.UserStatus;
 import java.time.OffsetDateTime;
 
 public record GuestSignupResponse(
-        Long userId,
         String loginId,
         String name,
         String email,
@@ -19,7 +18,6 @@ public record GuestSignupResponse(
 
     public static GuestSignupResponse from(GuestSignupResult result) {
         return new GuestSignupResponse(
-                result.userId(),
                 result.loginId(),
                 result.name(),
                 result.email(),

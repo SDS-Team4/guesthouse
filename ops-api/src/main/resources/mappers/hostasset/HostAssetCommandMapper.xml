@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.opsapi.hostasset.mapper.HostAssetCommandMapper">
+
+    <insert id="insertAccommodation" useGeneratedKeys="true" keyProperty="accommodationId">
+        INSERT INTO accommodations (
+            host_user_id,
+            name,
+            address,
+            region,
+            info_text,
+            check_in_time,
+            check_out_time,
+            status,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{hostUserId},
+            #{name},
+            #{address},
+            #{region},
+            #{infoText},
+            #{checkInTime},
+            #{checkOutTime},
+            #{status},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="updateAccommodation">
+        UPDATE accommodations
+        SET
+            name = #{name},
+            address = #{address},
+            region = #{region},
+            info_text = #{infoText},
+            check_in_time = #{checkInTime},
+            check_out_time = #{checkOutTime},
+            updated_at = #{updatedAt}
+        WHERE accommodation_id = #{accommodationId}
+    </update>
+
+    <update id="markAccommodationInactive">
+        UPDATE accommodations
+        SET
+            status = 'INACTIVE',
+            updated_at = #{updatedAt}
+        WHERE accommodation_id = #{accommodationId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <insert id="insertRoomType" useGeneratedKeys="true" keyProperty="roomTypeId">
+        INSERT INTO room_types (
+            accommodation_id,
+            name,
+            base_capacity,
+            max_capacity,
+            base_price,
+            status,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{accommodationId},
+            #{name},
+            #{baseCapacity},
+            #{maxCapacity},
+            #{basePrice},
+            #{status},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="updateRoomType">
+        UPDATE room_types
+        SET
+            name = #{name},
+            base_capacity = #{baseCapacity},
+            max_capacity = #{maxCapacity},
+            base_price = #{basePrice},
+            updated_at = #{updatedAt}
+        WHERE room_type_id = #{roomTypeId}
+    </update>
+
+    <update id="markRoomTypeInactive">
+        UPDATE room_types
+        SET
+            status = 'INACTIVE',
+            updated_at = #{updatedAt}
+        WHERE room_type_id = #{roomTypeId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <insert id="insertRoom" useGeneratedKeys="true" keyProperty="roomId">
+        INSERT INTO rooms (
+            accommodation_id,
+            room_type_id,
+            room_code,
+            status,
+            memo,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{accommodationId},
+            #{roomTypeId},
+            #{roomCode},
+            #{status},
+            #{memo},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="updateRoom">
+        UPDATE rooms
+        SET
+            room_code = #{roomCode},
+            status = #{status},
+            memo = #{memo},
+            updated_at = #{updatedAt}
+        WHERE room_id = #{roomId}
+    </update>
+
+    <update id="markRoomInactive">
+        UPDATE rooms
+        SET
+            status = 'INACTIVE',
+            updated_at = #{updatedAt}
+        WHERE room_id = #{roomId}
+          AND status != 'INACTIVE'
+    </update>
+</mapper>

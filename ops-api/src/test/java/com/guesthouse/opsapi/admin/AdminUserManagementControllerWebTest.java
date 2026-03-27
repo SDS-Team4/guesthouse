@@ -2,6 +2,8 @@ package com.guesthouse.opsapi.admin;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.guesthouse.opsapi.admin.service.AdminUserQueryService;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetCommandMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetQueryMapper;
 import com.guesthouse.shared.auth.config.AuthWebMvcConfigurer;
 import com.guesthouse.shared.auth.session.SessionUser;
 import com.guesthouse.shared.db.audit.mapper.AuditLogMapper;
@@ -101,6 +103,12 @@ class AdminUserManagementControllerWebTest {
 
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
+
+    @MockBean
+    private HostAssetQueryMapper hostAssetQueryMapper;
+
+    @MockBean
+    private HostAssetCommandMapper hostAssetCommandMapper;
 
     @Test
     void usersReturnsAdminList() throws Exception {

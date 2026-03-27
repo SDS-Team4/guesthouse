@@ -20,9 +20,9 @@ import java.util.Set;
 @Service
 public class SessionAuthenticationService {
 
-    private static final int LOGIN_FAILURE_WINDOW_MINUTES = 5;
+    private static final int LOGIN_FAILURE_WINDOW_MINUTES = 15;
     private static final int LOGIN_FAILURE_LOCK_THRESHOLD = 5;
-    private static final int LOGIN_LOCK_MINUTES = 5;
+    private static final int LOGIN_LOCK_MINUTES = 30;
 
     private final UserQueryMapper userQueryMapper;
     private final UserLoginSecurityMapper userLoginSecurityMapper;

@@ -6,6 +6,7 @@ import com.guesthouse.guestapi.accommodation.api.AccommodationSearchResponse;
 import com.guesthouse.guestapi.accommodation.api.RoomTypeAvailabilityResponse;
 import com.guesthouse.guestapi.accommodation.api.RoomTypeCalendarDayResponse;
 import com.guesthouse.guestapi.accommodation.api.RoomTypeCalendarResponse;
+import com.guesthouse.guestapi.accommodation.config.GuestPublicReadProperties;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
 import com.guesthouse.shared.db.reservation.model.AccommodationOccupiedRoomNightRecord;
 import com.guesthouse.shared.db.reservation.model.AccommodationRoomBlockRecord;
@@ -31,25 +32,70 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Service
 public class GuestAccommodationReadService {
 
     private final ReservationQueryMapper reservationQueryMapper;
     private final PricePolicyQueryMapper pricePolicyQueryMapper;
+    private final GuestPublicReadProperties guestPublicReadProperties;
     private final Clock clock;
+    private final Map<String, CacheEntry> responseCache = new ConcurrentHashMap<>();
 
     public GuestAccommodationReadService(
             ReservationQueryMapper reservationQueryMapper,
             PricePolicyQueryMapper pricePolicyQueryMapper,
+            GuestPublicReadProperties guestPublicReadProperties,
             Clock clock
     ) {
         this.reservationQueryMapper = reservationQueryMapper;
         this.pricePolicyQueryMapper = pricePolicyQueryMapper;
+        this.guestPublicReadProperties = guestPublicReadProperties;
         this.clock = clock;
     }
 
     public List<AccommodationSearchResponse> searchAccommodations(
+            String region,
+            LocalDate checkInDate,
+            LocalDate checkOutDate,
+            int guestCount
+    ) {
+        return getOrLoadCached(
+                buildSearchCacheKey(region, checkInDate, checkOutDate, guestCount),
+                guestPublicReadProperties.getSearchCacheTtlSeconds(),
+                () -> computeSearchAccommodations(region, checkInDate, checkOutDate, guestCount)
+        );
+    }
+
+    public AccommodationDetailResponse getAccommodationDetail(
+            Long accommodationId,
+            LocalDate checkInDate,
+            LocalDate checkOutDate,
+            int guestCount
+    ) {
+        return getOrLoadCached(
+                buildDetailCacheKey(accommodationId, checkInDate, checkOutDate, guestCount),
+                guestPublicReadProperties.getDetailCacheTtlSeconds(),
+                () -> computeAccommodationDetail(accommodationId, checkInDate, checkOutDate, guestCount)
+        );
+    }
+
+    public RoomTypeCalendarResponse getRoomTypeCalendar(
+            Long accommodationId,
+            Long roomTypeId,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        return getOrLoadCached(
+                buildCalendarCacheKey(accommodationId, roomTypeId, startDate, endDate),
+                guestPublicReadProperties.getCalendarCacheTtlSeconds(),
+                () -> computeRoomTypeCalendar(accommodationId, roomTypeId, startDate, endDate)
+        );
+    }
+
+    private List<AccommodationSearchResponse> computeSearchAccommodations(
             String region,
             LocalDate checkInDate,
             LocalDate checkOutDate,
@@ -109,7 +155,7 @@ public class GuestAccommodationReadService {
                 .toList();
     }
 
-    public AccommodationDetailResponse getAccommodationDetail(
+    private AccommodationDetailResponse computeAccommodationDetail(
             Long accommodationId,
             LocalDate checkInDate,
             LocalDate checkOutDate,
@@ -185,7 +231,7 @@ public class GuestAccommodationReadService {
         );
     }
 
-    public RoomTypeCalendarResponse getRoomTypeCalendar(
+    private RoomTypeCalendarResponse computeRoomTypeCalendar(
             Long accommodationId,
             Long roomTypeId,
             LocalDate startDate,
@@ -239,6 +285,39 @@ public class GuestAccommodationReadService {
                 endDate,
                 days
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T getOrLoadCached(String cacheKey, int ttlSeconds, Supplier<T> supplier) {
+        if (ttlSeconds <= 0) {
+            return supplier.get();
+        }
+
+        LocalDate today = LocalDate.now(clock);
+        CacheEntry existing = responseCache.get(cacheKey);
+        if (existing != null && existing.expiresOnOrAfter(today)) {
+            return (T) existing.value();
+        }
+
+        T loadedValue = supplier.get();
+        LocalDate expiresOn = today.plusDays(0);
+        if (ttlSeconds >= 60) {
+            expiresOn = today.plusDays(1);
+        }
+        responseCache.put(cacheKey, new CacheEntry(loadedValue, System.nanoTime() + (ttlSeconds * 1_000_000_000L), expiresOn));
+        return loadedValue;
+    }
+
+    private String buildSearchCacheKey(String region, LocalDate checkInDate, LocalDate checkOutDate, int guestCount) {
+        return "search|" + normalizeRegion(region) + "|" + checkInDate + "|" + checkOutDate + "|" + guestCount;
+    }
+
+    private String buildDetailCacheKey(Long accommodationId, LocalDate checkInDate, LocalDate checkOutDate, int guestCount) {
+        return "detail|" + accommodationId + "|" + checkInDate + "|" + checkOutDate + "|" + guestCount;
+    }
+
+    private String buildCalendarCacheKey(Long accommodationId, Long roomTypeId, LocalDate startDate, LocalDate endDate) {
+        return "calendar|" + accommodationId + "|" + roomTypeId + "|" + startDate + "|" + endDate;
     }
 
     private AccommodationContext loadAccommodationContext(Long accommodationId) {
@@ -580,5 +659,15 @@ public class GuestAccommodationReadService {
             int availableRoomCount,
             AccommodationAvailabilityCategory availabilityCategory
     ) {
+    }
+
+    private record CacheEntry(
+            Object value,
+            long expiresAtNanos,
+            LocalDate expiresOn
+    ) {
+        private boolean expiresOnOrAfter(LocalDate today) {
+            return System.nanoTime() <= expiresAtNanos && !today.isAfter(expiresOn);
+        }
     }
 }

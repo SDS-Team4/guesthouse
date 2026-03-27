@@ -548,6 +548,80 @@
         ORDER BY rv.requested_at DESC, rv.reservation_id DESC
     </select>
 
+    <select id="findOpsReservationsForCalendar" resultMap="OpsReservationListRecordMap">
+        SELECT
+            rv.reservation_id,
+            rv.reservation_no,
+            rv.guest_user_id,
+            u.login_id AS guest_login_id,
+            u.name AS guest_name,
+            rv.accommodation_id,
+            a.name AS accommodation_name,
+            rv.room_type_id,
+            rt.name AS room_type_name,
+            rv.guest_count,
+            rv.check_in_date,
+            rv.check_out_date,
+            rv.status,
+            rv.requested_at,
+            rv.confirmed_at,
+            rv.cancelled_at,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM reservation_nights rn
+                    WHERE rn.reservation_id = rv.reservation_id
+                      AND rn.stay_date &gt;= #{currentDate}
+                ) THEN TRUE
+                ELSE FALSE
+            END AS reassignment_possible,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM room_blocks rb
+                    JOIN rooms br
+                        ON br.room_id = rb.room_id
+                    WHERE br.accommodation_id = rv.accommodation_id
+                      AND rb.status = 'ACTIVE'
+                      AND rb.start_date &lt; rv.check_out_date
+                      AND rb.end_date &gt;= rv.check_in_date
+                ) THEN TRUE
+                ELSE FALSE
+            END AS has_relevant_blocks,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM price_policies pp
+                    WHERE pp.accommodation_id = rv.accommodation_id
+                      AND pp.room_type_id = rv.room_type_id
+                      AND pp.status = 'ACTIVE'
+                      AND pp.start_date &lt; rv.check_out_date
+                      AND pp.end_date &gt;= rv.check_in_date
+                ) THEN TRUE
+                ELSE FALSE
+            END AS has_relevant_pricing
+        FROM reservations rv
+        JOIN users u
+            ON u.user_id = rv.guest_user_id
+        JOIN accommodations a
+            ON a.accommodation_id = rv.accommodation_id
+        JOIN room_types rt
+            ON rt.room_type_id = rv.room_type_id
+        WHERE rv.status IN ('PENDING', 'CONFIRMED')
+          AND rv.accommodation_id = #{accommodationId}
+          AND (#{isAdmin} = TRUE OR a.host_user_id = #{hostUserId})
+          AND rv.check_in_date &lt; #{endDate}
+          AND rv.check_out_date &gt; #{startDate}
+        ORDER BY
+            CASE
+                WHEN rv.status = 'PENDING' THEN 0
+                ELSE 1
+            END ASC,
+            rv.check_in_date ASC,
+            rv.requested_at ASC,
+            rv.reservation_id ASC
+    </select>
+
     <select id="findOpsReservationDetailByReservationId" resultMap="OpsReservationDetailRecordMap">
         SELECT
             rv.reservation_id,

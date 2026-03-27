@@ -88,7 +88,7 @@ public class ReservationReassignmentService {
         }
 
         List<OpsReservationNightRecord> changedNights = changesByNightId.keySet().stream()
-                .map(nightId -> requireReservationNight(nightsById, nightId))
+                .map(nightId -> requireReservationNight(nightsById, nightId, reservationId))
                 .sorted(Comparator.comparing(OpsReservationNightRecord::getStayDate))
                 .toList();
 
@@ -201,6 +201,193 @@ public class ReservationReassignmentService {
         );
     }
 
+    @Transactional
+    public ReservationNightSwapResult swapReservationNights(
+            ReservationNightSwapChange requestedSwap,
+            SessionUser actor
+    ) {
+        validateSwapRequest(requestedSwap);
+
+        List<Long> reservationIdsToLock = requestedSwap.reservationIdsInLockOrder();
+        Map<Long, OpsReservationMutationTargetRecord> targetsByReservationId = new LinkedHashMap<>();
+        for (Long reservationId : reservationIdsToLock) {
+            OpsReservationMutationTargetRecord target = reservationQueryMapper.lockOpsReservationMutationTarget(reservationId);
+            if (target == null) {
+                throw new AppException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "Reservation not found.");
+            }
+            requireMutationAccess(actor, target.getHostUserId());
+            if (!isEligibleReservationStatus(target.getStatus())) {
+                throw new AppException(
+                        ErrorCode.INVALID_REQUEST,
+                        HttpStatus.CONFLICT,
+                        "Only pending or confirmed reservations can be swapped."
+                );
+            }
+            targetsByReservationId.put(reservationId, target);
+        }
+
+        OpsReservationMutationTargetRecord sourceTarget = targetsByReservationId.get(requestedSwap.sourceReservationId());
+        OpsReservationMutationTargetRecord targetTarget = targetsByReservationId.get(requestedSwap.targetReservationId());
+        if (!sourceTarget.getAccommodationId().equals(targetTarget.getAccommodationId())) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.CONFLICT,
+                    "Only reservation nights in the same accommodation can be swapped."
+            );
+        }
+
+        List<OpsReservationNightRecord> reservationNights =
+                reservationQueryMapper.findOpsReservationNightsByReservationIds(reservationIdsToLock);
+        Map<Long, OpsReservationNightRecord> nightsById = new LinkedHashMap<>();
+        for (OpsReservationNightRecord reservationNight : reservationNights) {
+            nightsById.put(reservationNight.getReservationNightId(), reservationNight);
+        }
+
+        OpsReservationNightRecord sourceNight = requireReservationNight(
+                nightsById,
+                requestedSwap.sourceReservationNightId(),
+                requestedSwap.sourceReservationId()
+        );
+        OpsReservationNightRecord targetNight = requireReservationNight(
+                nightsById,
+                requestedSwap.targetReservationNightId(),
+                requestedSwap.targetReservationId()
+        );
+
+        if (!sourceNight.getStayDate().equals(targetNight.getStayDate())) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.CONFLICT,
+                    "Only reservation nights on the same stay date can be swapped."
+            );
+        }
+        if (sourceNight.getAssignedRoomId().equals(targetNight.getAssignedRoomId())) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.BAD_REQUEST,
+                    "Swap requires two different assigned rooms."
+            );
+        }
+
+        LocalDate businessDate = LocalDate.now(clock);
+        validateNightEligibility(sourceNight, businessDate);
+        validateNightEligibility(targetNight, businessDate);
+
+        LocalDate stayDate = sourceNight.getStayDate();
+        LocalDate stayDateExclusive = stayDate.plusDays(1);
+        Map<Long, ActiveRoomInventoryRecord> activeRoomsById = lockActiveRooms(sourceTarget.getAccommodationId());
+        ActiveRoomInventoryRecord sourceCurrentRoom = requireTargetRoom(activeRoomsById, sourceNight.getAssignedRoomId());
+        ActiveRoomInventoryRecord targetCurrentRoom = requireTargetRoom(activeRoomsById, targetNight.getAssignedRoomId());
+
+        Map<LocalDate, Set<Long>> blockedRoomsByDate = buildBlockedRoomsByDate(
+                reservationInventoryMapper.findActiveRoomBlocksForAccommodationStay(
+                        sourceTarget.getAccommodationId(),
+                        stayDate,
+                        stayDateExclusive
+                ),
+                stayDate,
+                stayDateExclusive
+        );
+        Set<Long> blockedRooms = blockedRoomsByDate.getOrDefault(stayDate, Set.of());
+        if (blockedRooms.contains(sourceCurrentRoom.getRoomId()) || blockedRooms.contains(targetCurrentRoom.getRoomId())) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.CONFLICT,
+                    "Blocked rooms cannot participate in a reservation-night swap."
+            );
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        reservationCommandMapper.updateReservationNightAssignedRoom(
+                sourceNight.getReservationNightId(),
+                targetCurrentRoom.getRoomId(),
+                now
+        );
+        reservationCommandMapper.updateReservationNightAssignedRoom(
+                targetNight.getReservationNightId(),
+                sourceCurrentRoom.getRoomId(),
+                now
+        );
+        reservationCommandMapper.touchReservationUpdatedAt(sourceTarget.getReservationId(), now);
+        reservationCommandMapper.touchReservationUpdatedAt(targetTarget.getReservationId(), now);
+
+        Map<String, Object> sourceBeforeState = new LinkedHashMap<>();
+        sourceBeforeState.put("night", buildNightState(
+                sourceNight.getReservationNightId(),
+                sourceNight.getStayDate(),
+                sourceNight.getAssignedRoomId(),
+                sourceNight.getAssignedRoomCode(),
+                sourceNight.getAssignedRoomTypeId(),
+                sourceNight.getAssignedRoomTypeName()
+        ));
+        sourceBeforeState.put("swapPartnerReservationId", targetTarget.getReservationId());
+        sourceBeforeState.put("swapPartnerReservationNo", targetTarget.getReservationNo());
+        Map<String, Object> sourceAfterState = new LinkedHashMap<>();
+        sourceAfterState.put("night", buildNightState(
+                sourceNight.getReservationNightId(),
+                sourceNight.getStayDate(),
+                targetCurrentRoom.getRoomId(),
+                targetCurrentRoom.getRoomCode(),
+                targetCurrentRoom.getRoomTypeId(),
+                targetCurrentRoom.getRoomTypeName()
+        ));
+        sourceAfterState.put("swapPartnerReservationId", targetTarget.getReservationId());
+        sourceAfterState.put("swapPartnerReservationNo", targetTarget.getReservationNo());
+
+        Map<String, Object> targetBeforeState = new LinkedHashMap<>();
+        targetBeforeState.put("night", buildNightState(
+                targetNight.getReservationNightId(),
+                targetNight.getStayDate(),
+                targetNight.getAssignedRoomId(),
+                targetNight.getAssignedRoomCode(),
+                targetNight.getAssignedRoomTypeId(),
+                targetNight.getAssignedRoomTypeName()
+        ));
+        targetBeforeState.put("swapPartnerReservationId", sourceTarget.getReservationId());
+        targetBeforeState.put("swapPartnerReservationNo", sourceTarget.getReservationNo());
+        Map<String, Object> targetAfterState = new LinkedHashMap<>();
+        targetAfterState.put("night", buildNightState(
+                targetNight.getReservationNightId(),
+                targetNight.getStayDate(),
+                sourceCurrentRoom.getRoomId(),
+                sourceCurrentRoom.getRoomCode(),
+                sourceCurrentRoom.getRoomTypeId(),
+                sourceCurrentRoom.getRoomTypeName()
+        ));
+        targetAfterState.put("swapPartnerReservationId", sourceTarget.getReservationId());
+        targetAfterState.put("swapPartnerReservationNo", sourceTarget.getReservationNo());
+
+        opsReservationAuditService.writeReservationAudit(
+                actor,
+                sourceTarget.getReservationId(),
+                "RESERVATION_NIGHT_SWAPPED",
+                "OPS_SWAP",
+                "Reservation night swapped with another reservation by operations.",
+                sourceBeforeState,
+                sourceAfterState,
+                now
+        );
+        opsReservationAuditService.writeReservationAudit(
+                actor,
+                targetTarget.getReservationId(),
+                "RESERVATION_NIGHT_SWAPPED",
+                "OPS_SWAP",
+                "Reservation night swapped with another reservation by operations.",
+                targetBeforeState,
+                targetAfterState,
+                now
+        );
+
+        return new ReservationNightSwapResult(
+                sourceTarget.getReservationId(),
+                sourceTarget.getReservationNo(),
+                targetTarget.getReservationId(),
+                targetTarget.getReservationNo(),
+                stayDate,
+                now.atZone(BUSINESS_ZONE_ID).toOffsetDateTime()
+        );
+    }
+
     private Map<Long, ReservationNightReassignmentChange> normalizeChanges(
             List<ReservationNightReassignmentChange> requestedChanges
     ) {
@@ -224,13 +411,38 @@ public class ReservationReassignmentService {
         return changesByNightId;
     }
 
+    private void validateSwapRequest(ReservationNightSwapChange requestedSwap) {
+        if (requestedSwap == null
+                || requestedSwap.sourceReservationId() == null
+                || requestedSwap.sourceReservationNightId() == null
+                || requestedSwap.targetReservationId() == null
+                || requestedSwap.targetReservationNightId() == null) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.BAD_REQUEST,
+                    "Source and target reservation nights are required for swap."
+            );
+        }
+        if (requestedSwap.sourceReservationNightId().equals(requestedSwap.targetReservationNightId())) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.BAD_REQUEST,
+                    "Swap requires two different reservation nights."
+            );
+        }
+    }
+
     private OpsReservationNightRecord requireReservationNight(
             Map<Long, OpsReservationNightRecord> nightsById,
-            Long reservationNightId
+            Long reservationNightId,
+            Long reservationId
     ) {
         OpsReservationNightRecord reservationNight = nightsById.get(reservationNightId);
         if (reservationNight == null) {
             throw new AppException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "Reservation night not found.");
+        }
+        if (!reservationNight.getReservationId().equals(reservationId)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, HttpStatus.BAD_REQUEST, "Reservation night does not match the reservation.");
         }
         return reservationNight;
     }
@@ -341,5 +553,21 @@ public class ReservationReassignmentService {
             Long reservationNightId,
             Long assignedRoomId
     ) {
+    }
+
+    public record ReservationNightSwapChange(
+            Long sourceReservationId,
+            Long sourceReservationNightId,
+            Long targetReservationId,
+            Long targetReservationNightId
+    ) {
+        public List<Long> reservationIdsInLockOrder() {
+            if (sourceReservationId.equals(targetReservationId)) {
+                return List.of(sourceReservationId);
+            }
+            return sourceReservationId < targetReservationId
+                    ? List.of(sourceReservationId, targetReservationId)
+                    : List.of(targetReservationId, sourceReservationId);
+        }
     }
 }

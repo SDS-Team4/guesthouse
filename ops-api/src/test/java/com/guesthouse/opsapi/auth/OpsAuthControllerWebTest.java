@@ -1,9 +1,14 @@
 package com.guesthouse.opsapi.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetCommandMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetQueryMapper;
 import com.guesthouse.shared.auth.config.AuthWebMvcConfigurer;
+import com.guesthouse.shared.auth.service.AccountRecoveryService;
 import com.guesthouse.shared.auth.service.SessionAuthenticationService;
+import com.guesthouse.shared.auth.session.SessionLifecycleService;
 import com.guesthouse.shared.auth.session.SessionUser;
+import com.guesthouse.shared.db.auth.mapper.PasswordRecoveryVerificationMapper;
 import com.guesthouse.shared.db.auth.mapper.UserLoginSecurityMapper;
 import com.guesthouse.shared.db.auth.mapper.UserQueryMapper;
 import com.guesthouse.shared.db.audit.mapper.AuditLogMapper;
@@ -52,10 +57,19 @@ class OpsAuthControllerWebTest {
     private SessionAuthenticationService sessionAuthenticationService;
 
     @MockBean
+    private AccountRecoveryService accountRecoveryService;
+
+    @MockBean
+    private SessionLifecycleService sessionLifecycleService;
+
+    @MockBean
     private UserQueryMapper userQueryMapper;
 
     @MockBean
     private UserLoginSecurityMapper userLoginSecurityMapper;
+
+    @MockBean
+    private PasswordRecoveryVerificationMapper passwordRecoveryVerificationMapper;
 
     @MockBean
     private ReservationInventoryMapper reservationInventoryMapper;
@@ -98,6 +112,12 @@ class OpsAuthControllerWebTest {
 
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
+
+    @MockBean
+    private HostAssetQueryMapper hostAssetQueryMapper;
+
+    @MockBean
+    private HostAssetCommandMapper hostAssetCommandMapper;
 
     @Test
     void loginAllowsHostRole() throws Exception {

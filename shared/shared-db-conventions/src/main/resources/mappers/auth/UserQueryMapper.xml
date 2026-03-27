@@ -61,4 +61,102 @@
             ON s.user_id = u.user_id
         WHERE u.user_id = #{userId}
     </select>
+
+    <select id="findActiveUserByNameAndEmail" resultMap="UserAuthRecordMap">
+        SELECT
+            u.user_id,
+            u.login_id,
+            u.password_hash,
+            u.name,
+            u.email,
+            u.phone,
+            u.role,
+            u.status,
+            s.failed_login_count,
+            s.last_failed_at,
+            s.locked_until,
+            s.last_login_at,
+            s.password_changed_at
+        FROM users u
+        LEFT JOIN user_login_security s
+            ON s.user_id = u.user_id
+        WHERE u.status = 'ACTIVE'
+          AND u.name = #{name}
+          AND u.email = #{email}
+        LIMIT 1
+    </select>
+
+    <select id="findActiveUserByNameAndPhone" resultMap="UserAuthRecordMap">
+        SELECT
+            u.user_id,
+            u.login_id,
+            u.password_hash,
+            u.name,
+            u.email,
+            u.phone,
+            u.role,
+            u.status,
+            s.failed_login_count,
+            s.last_failed_at,
+            s.locked_until,
+            s.last_login_at,
+            s.password_changed_at
+        FROM users u
+        LEFT JOIN user_login_security s
+            ON s.user_id = u.user_id
+        WHERE u.status = 'ACTIVE'
+          AND u.name = #{name}
+          AND u.phone = #{phone}
+        LIMIT 1
+    </select>
+
+    <select id="findActiveUserByLoginIdAndNameAndEmail" resultMap="UserAuthRecordMap">
+        SELECT
+            u.user_id,
+            u.login_id,
+            u.password_hash,
+            u.name,
+            u.email,
+            u.phone,
+            u.role,
+            u.status,
+            s.failed_login_count,
+            s.last_failed_at,
+            s.locked_until,
+            s.last_login_at,
+            s.password_changed_at
+        FROM users u
+        LEFT JOIN user_login_security s
+            ON s.user_id = u.user_id
+        WHERE u.status = 'ACTIVE'
+          AND u.login_id = #{loginId}
+          AND u.name = #{name}
+          AND u.email = #{email}
+        LIMIT 1
+    </select>
+
+    <select id="findActiveUserByLoginIdAndNameAndPhone" resultMap="UserAuthRecordMap">
+        SELECT
+            u.user_id,
+            u.login_id,
+            u.password_hash,
+            u.name,
+            u.email,
+            u.phone,
+            u.role,
+            u.status,
+            s.failed_login_count,
+            s.last_failed_at,
+            s.locked_until,
+            s.last_login_at,
+            s.password_changed_at
+        FROM users u
+        LEFT JOIN user_login_security s
+            ON s.user_id = u.user_id
+        WHERE u.status = 'ACTIVE'
+          AND u.login_id = #{loginId}
+          AND u.name = #{name}
+          AND u.phone = #{phone}
+        LIMIT 1
+    </select>
 </mapper>

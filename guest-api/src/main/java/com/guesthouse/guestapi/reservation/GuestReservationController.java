@@ -76,7 +76,7 @@ public class GuestReservationController {
         );
     }
 
-    @GetMapping("/{reservationId}")
+    @GetMapping("/{reservationId:\\d+}")
     @RequireRoles(UserRole.GUEST)
     public ApiResponse<GuestReservationDetailResponse> findMyReservationDetail(
             @CurrentSessionUser SessionUser sessionUser,
@@ -92,7 +92,7 @@ public class GuestReservationController {
         );
     }
 
-    @PostMapping("/{reservationId}/cancel")
+    @PostMapping("/{reservationId:\\d+}/cancel")
     @RequireRoles(UserRole.GUEST)
     public ApiResponse<GuestReservationCancellationResponse> cancelMyReservation(
             @CurrentSessionUser SessionUser sessionUser,

@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.opsapi.hostasset.mapper.HostAssetQueryMapper">
+
+    <resultMap id="HostAccommodationSummaryRecordMap" type="com.guesthouse.opsapi.hostasset.model.HostAccommodationSummaryRecord">
+        <id property="accommodationId" column="accommodation_id"/>
+        <result property="name" column="name"/>
+        <result property="region" column="region"/>
+        <result property="address" column="address"/>
+        <result property="status" column="status"/>
+        <result property="roomTypeCount" column="room_type_count"/>
+        <result property="roomCount" column="room_count"/>
+        <result property="activeRoomCount" column="active_room_count"/>
+        <result property="pendingReservationCount" column="pending_reservation_count"/>
+    </resultMap>
+
+    <resultMap id="HostAccommodationDetailRecordMap" type="com.guesthouse.opsapi.hostasset.model.HostAccommodationDetailRecord">
+        <id property="accommodationId" column="accommodation_id"/>
+        <result property="name" column="name"/>
+        <result property="region" column="region"/>
+        <result property="address" column="address"/>
+        <result property="infoText" column="info_text"/>
+        <result property="checkInTime" column="check_in_time"/>
+        <result property="checkOutTime" column="check_out_time"/>
+        <result property="status" column="status"/>
+        <result property="roomTypeCount" column="room_type_count"/>
+        <result property="roomCount" column="room_count"/>
+        <result property="activeRoomCount" column="active_room_count"/>
+        <result property="pendingReservationCount" column="pending_reservation_count"/>
+        <result property="activeBlockCount" column="active_block_count"/>
+        <result property="activePricePolicyCount" column="active_price_policy_count"/>
+    </resultMap>
+
+    <resultMap id="HostRoomTypeRecordMap" type="com.guesthouse.opsapi.hostasset.model.HostRoomTypeRecord">
+        <id property="roomTypeId" column="room_type_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="name" column="name"/>
+        <result property="baseCapacity" column="base_capacity"/>
+        <result property="maxCapacity" column="max_capacity"/>
+        <result property="basePrice" column="base_price"/>
+        <result property="status" column="status"/>
+        <result property="roomCount" column="room_count"/>
+        <result property="activeRoomCount" column="active_room_count"/>
+    </resultMap>
+
+    <resultMap id="HostRoomRecordMap" type="com.guesthouse.opsapi.hostasset.model.HostRoomRecord">
+        <id property="roomId" column="room_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="roomCode" column="room_code"/>
+        <result property="status" column="status"/>
+        <result property="memo" column="memo"/>
+        <result property="hasFutureAssignments" column="has_future_assignments"/>
+    </resultMap>
+
+    <resultMap id="HostAccommodationTargetRecordMap" type="com.guesthouse.opsapi.hostasset.model.HostAccommodationTargetRecord">
+        <id property="accommodationId" column="accommodation_id"/>
+        <result property="hostUserId" column="host_user_id"/>
+        <result property="name" column="name"/>
+        <result property="address" column="address"/>
+        <result property="region" column="region"/>
+        <result property="infoText" column="info_text"/>
+        <result property="checkInTime" column="check_in_time"/>
+        <result property="checkOutTime" column="check_out_time"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HostRoomTypeTargetRecordMap" type="com.guesthouse.opsapi.hostasset.model.HostRoomTypeTargetRecord">
+        <id property="roomTypeId" column="room_type_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="hostUserId" column="host_user_id"/>
+        <result property="accommodationStatus" column="accommodation_status"/>
+        <result property="name" column="name"/>
+        <result property="baseCapacity" column="base_capacity"/>
+        <result property="maxCapacity" column="max_capacity"/>
+        <result property="basePrice" column="base_price"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <resultMap id="HostRoomTypeOptionRecordMap" type="com.guesthouse.opsapi.hostasset.model.HostRoomTypeOptionRecord">
+        <id property="roomTypeId" column="room_type_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="hostUserId" column="host_user_id"/>
+        <result property="roomTypeName" column="room_type_name"/>
+        <result property="roomTypeStatus" column="room_type_status"/>
+    </resultMap>
+
+    <resultMap id="HostRoomTargetRecordMap" type="com.guesthouse.opsapi.hostasset.model.HostRoomTargetRecord">
+        <id property="roomId" column="room_id"/>
+        <result property="accommodationId" column="accommodation_id"/>
+        <result property="hostUserId" column="host_user_id"/>
+        <result property="roomTypeId" column="room_type_id"/>
+        <result property="roomCode" column="room_code"/>
+        <result property="status" column="status"/>
+        <result property="memo" column="memo"/>
+        <result property="accommodationStatus" column="accommodation_status"/>
+        <result property="roomTypeStatus" column="room_type_status"/>
+    </resultMap>
+
+    <select id="findAccommodationSummaries" resultMap="HostAccommodationSummaryRecordMap">
+        SELECT
+            a.accommodation_id,
+            a.name,
+            a.region,
+            a.address,
+            a.status,
+            (
+                SELECT COUNT(*)
+                FROM room_types rt
+                WHERE rt.accommodation_id = a.accommodation_id
+            ) AS room_type_count,
+            (
+                SELECT COUNT(*)
+                FROM rooms r
+                WHERE r.accommodation_id = a.accommodation_id
+            ) AS room_count,
+            (
+                SELECT COUNT(*)
+                FROM rooms r
+                WHERE r.accommodation_id = a.accommodation_id
+                  AND r.status = 'ACTIVE'
+            ) AS active_room_count,
+            (
+                SELECT COUNT(*)
+                FROM reservations rv
+                WHERE rv.accommodation_id = a.accommodation_id
+                  AND rv.status = 'PENDING'
+            ) AS pending_reservation_count
+        FROM accommodations a
+        WHERE a.host_user_id = #{hostUserId}
+        ORDER BY
+            CASE WHEN a.status = 'ACTIVE' THEN 0 ELSE 1 END,
+            a.name ASC,
+            a.accommodation_id ASC
+    </select>
+
+    <select id="findAccommodationDetail" resultMap="HostAccommodationDetailRecordMap">
+        SELECT
+            a.accommodation_id,
+            a.name,
+            a.region,
+            a.address,
+            a.info_text,
+            a.check_in_time,
+            a.check_out_time,
+            a.status,
+            (
+                SELECT COUNT(*)
+                FROM room_types rt
+                WHERE rt.accommodation_id = a.accommodation_id
+            ) AS room_type_count,
+            (
+                SELECT COUNT(*)
+                FROM rooms r
+                WHERE r.accommodation_id = a.accommodation_id
+            ) AS room_count,
+            (
+                SELECT COUNT(*)
+                FROM rooms r
+                WHERE r.accommodation_id = a.accommodation_id
+                  AND r.status = 'ACTIVE'
+            ) AS active_room_count,
+            (
+                SELECT COUNT(*)
+                FROM reservations rv
+                WHERE rv.accommodation_id = a.accommodation_id
+                  AND rv.status = 'PENDING'
+            ) AS pending_reservation_count,
+            (
+                SELECT COUNT(*)
+                FROM room_blocks rb
+                JOIN rooms r ON r.room_id = rb.room_id
+                WHERE r.accommodation_id = a.accommodation_id
+                  AND rb.status = 'ACTIVE'
+            ) AS active_block_count,
+            (
+                SELECT COUNT(*)
+                FROM price_policies pp
+                WHERE pp.accommodation_id = a.accommodation_id
+                  AND pp.status = 'ACTIVE'
+            ) AS active_price_policy_count
+        FROM accommodations a
+        WHERE a.accommodation_id = #{accommodationId}
+          AND a.host_user_id = #{hostUserId}
+    </select>
+
+    <select id="findRoomTypesByAccommodationId" resultMap="HostRoomTypeRecordMap">
+        SELECT
+            rt.room_type_id,
+            rt.accommodation_id,
+            rt.name,
+            rt.base_capacity,
+            rt.max_capacity,
+            rt.base_price,
+            rt.status,
+            (
+                SELECT COUNT(*)
+                FROM rooms r
+                WHERE r.room_type_id = rt.room_type_id
+            ) AS room_count,
+            (
+                SELECT COUNT(*)
+                FROM rooms r
+                WHERE r.room_type_id = rt.room_type_id
+                  AND r.status = 'ACTIVE'
+            ) AS active_room_count
+        FROM room_types rt
+        JOIN accommodations a
+            ON a.accommodation_id = rt.accommodation_id
+        WHERE rt.accommodation_id = #{accommodationId}
+          AND a.host_user_id = #{hostUserId}
+        ORDER BY
+            CASE WHEN rt.status = 'ACTIVE' THEN 0 ELSE 1 END,
+            rt.name ASC,
+            rt.room_type_id ASC
+    </select>
+
+    <select id="findRoomsByAccommodationId" resultMap="HostRoomRecordMap">
+        SELECT
+            r.room_id,
+            r.accommodation_id,
+            r.room_type_id,
+            rt.name AS room_type_name,
+            r.room_code,
+            r.status,
+            r.memo,
+            EXISTS(
+                SELECT 1
+                FROM reservation_nights rn
+                JOIN reservations rv
+                    ON rv.reservation_id = rn.reservation_id
+                WHERE rn.assigned_room_id = r.room_id
+                  AND rv.status IN ('PENDING', 'CONFIRMED')
+                  AND rn.stay_date >= CURRENT_DATE()
+            ) AS has_future_assignments
+        FROM rooms r
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        JOIN accommodations a
+            ON a.accommodation_id = r.accommodation_id
+        WHERE r.accommodation_id = #{accommodationId}
+          AND a.host_user_id = #{hostUserId}
+        ORDER BY
+            CASE WHEN r.status = 'ACTIVE' THEN 0 WHEN r.status = 'MAINTENANCE' THEN 1 ELSE 2 END,
+            rt.name ASC,
+            r.room_code ASC,
+            r.room_id ASC
+    </select>
+
+    <select id="lockAccommodationTarget" resultMap="HostAccommodationTargetRecordMap">
+        SELECT
+            a.accommodation_id,
+            a.host_user_id,
+            a.name,
+            a.address,
+            a.region,
+            a.info_text,
+            a.check_in_time,
+            a.check_out_time,
+            a.status
+        FROM accommodations a
+        WHERE a.accommodation_id = #{accommodationId}
+        FOR UPDATE
+    </select>
+
+    <select id="countActiveReservationsByAccommodation" resultType="long">
+        SELECT COUNT(*)
+        FROM reservations rv
+        WHERE rv.accommodation_id = #{accommodationId}
+          AND rv.status IN ('PENDING', 'CONFIRMED')
+          AND rv.check_out_date > #{businessDate}
+    </select>
+
+    <select id="lockRoomTypeTarget" resultMap="HostRoomTypeTargetRecordMap">
+        SELECT
+            rt.room_type_id,
+            rt.accommodation_id,
+            a.host_user_id,
+            a.status AS accommodation_status,
+            rt.name,
+            rt.base_capacity,
+            rt.max_capacity,
+            rt.base_price,
+            rt.status
+        FROM room_types rt
+        JOIN accommodations a
+            ON a.accommodation_id = rt.accommodation_id
+        WHERE rt.room_type_id = #{roomTypeId}
+        FOR UPDATE
+    </select>
+
+    <select id="findRoomTypeOption" resultMap="HostRoomTypeOptionRecordMap">
+        SELECT
+            rt.room_type_id,
+            rt.accommodation_id,
+            a.host_user_id,
+            rt.name AS room_type_name,
+            rt.status AS room_type_status
+        FROM room_types rt
+        JOIN accommodations a
+            ON a.accommodation_id = rt.accommodation_id
+        WHERE rt.room_type_id = #{roomTypeId}
+    </select>
+
+    <select id="countActiveReservationsByRoomType" resultType="long">
+        SELECT COUNT(*)
+        FROM reservations rv
+        WHERE rv.room_type_id = #{roomTypeId}
+          AND rv.status IN ('PENDING', 'CONFIRMED')
+          AND rv.check_out_date > #{businessDate}
+    </select>
+
+    <select id="lockRoomTarget" resultMap="HostRoomTargetRecordMap">
+        SELECT
+            r.room_id,
+            r.accommodation_id,
+            a.host_user_id,
+            r.room_type_id,
+            r.room_code,
+            r.status,
+            r.memo,
+            a.status AS accommodation_status,
+            rt.status AS room_type_status
+        FROM rooms r
+        JOIN accommodations a
+            ON a.accommodation_id = r.accommodation_id
+        JOIN room_types rt
+            ON rt.room_type_id = r.room_type_id
+        WHERE r.room_id = #{roomId}
+        FOR UPDATE
+    </select>
+
+    <select id="countActiveAssignmentsByRoom" resultType="long">
+        SELECT COUNT(*)
+        FROM reservation_nights rn
+        JOIN reservations rv
+            ON rv.reservation_id = rn.reservation_id
+        WHERE rn.assigned_room_id = #{roomId}
+          AND rv.status IN ('PENDING', 'CONFIRMED')
+          AND rn.stay_date >= #{businessDate}
+    </select>
+</mapper>

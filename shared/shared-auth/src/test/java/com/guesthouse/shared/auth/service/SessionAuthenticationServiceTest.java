@@ -100,10 +100,10 @@ class SessionAuthenticationServiceTest {
     }
 
     @Test
-    void authenticateLocksAccountAfterFiveFailuresWithinFiveMinutes() {
+    void authenticateLocksAccountAfterFiveFailuresWithinFifteenMinutes() {
         UserAuthRecord authRecord = activeUser("guest-demo", UserRole.GUEST, null);
         authRecord.setFailedLoginCount(4);
-        authRecord.setLastFailedAt(LocalDateTime.of(2026, 3, 26, 9, 57));
+        authRecord.setLastFailedAt(LocalDateTime.of(2026, 3, 26, 9, 50));
         when(userQueryMapper.findAuthUserByLoginId("guest-demo"))
                 .thenReturn(authRecord)
                 .thenReturn(authRecord);
@@ -121,7 +121,7 @@ class SessionAuthenticationServiceTest {
                 eq(101L),
                 eq(5),
                 eq(LocalDateTime.of(2026, 3, 26, 10, 0)),
-                eq(LocalDateTime.of(2026, 3, 26, 10, 5))
+                eq(LocalDateTime.of(2026, 3, 26, 10, 30))
         );
     }
 

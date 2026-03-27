@@ -36,6 +36,12 @@ public interface ReservationCommandMapper {
             @Param("updatedAt") LocalDateTime updatedAt
     );
 
+    int markReservationCancelledFromOperations(
+            @Param("reservationId") Long reservationId,
+            @Param("cancelledAt") LocalDateTime cancelledAt,
+            @Param("updatedAt") LocalDateTime updatedAt
+    );
+
     int updateReservationNightAssignedRoom(
             @Param("reservationNightId") Long reservationNightId,
             @Param("assignedRoomId") Long assignedRoomId,

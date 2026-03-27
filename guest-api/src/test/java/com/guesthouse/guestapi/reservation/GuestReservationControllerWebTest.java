@@ -310,6 +310,18 @@ class GuestReservationControllerWebTest {
     }
 
     @Test
+    void myReservationDetailRouteRejectsNonNumericReservationId() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("SESSION_USER", new SessionUser(101L, "guest.demo", "Guest Demo", UserRole.GUEST));
+
+        mockMvc.perform(
+                        get("/api/v1/reservations/calendar")
+                                .session(session)
+                )
+                .andExpect(status().is4xxClientError());
+    }
+
+    @Test
     void cancelMyReservationReturnsCancelledReservationForAuthenticatedGuest() throws Exception {
         when(guestReservationCancellationService.cancelReservation(101L, 901L))
                 .thenReturn(new GuestReservationCancellationResult(

@@ -11,6 +11,7 @@ import com.guesthouse.guestapi.account.service.GuestHostRoleRequestService;
 import com.guesthouse.shared.auth.session.CurrentSessionUser;
 import com.guesthouse.shared.auth.session.RequireRoles;
 import com.guesthouse.shared.auth.session.SessionAuthConstants;
+import com.guesthouse.shared.auth.session.SessionLifecycleService;
 import com.guesthouse.shared.auth.session.SessionUser;
 import com.guesthouse.shared.domain.api.ApiResponse;
 import com.guesthouse.shared.domain.user.UserRole;
@@ -30,13 +31,16 @@ public class GuestAccountController {
 
     private final GuestAccountProfileService guestAccountProfileService;
     private final GuestHostRoleRequestService guestHostRoleRequestService;
+    private final SessionLifecycleService sessionLifecycleService;
 
     public GuestAccountController(
             GuestAccountProfileService guestAccountProfileService,
-            GuestHostRoleRequestService guestHostRoleRequestService
+            GuestHostRoleRequestService guestHostRoleRequestService,
+            SessionLifecycleService sessionLifecycleService
     ) {
         this.guestAccountProfileService = guestAccountProfileService;
         this.guestHostRoleRequestService = guestHostRoleRequestService;
+        this.sessionLifecycleService = sessionLifecycleService;
     }
 
     @GetMapping("/me")
@@ -71,9 +75,12 @@ public class GuestAccountController {
     @RequireRoles(UserRole.GUEST)
     public ApiResponse<GuestAccountPasswordChangeResponse> changePassword(
             @CurrentSessionUser SessionUser sessionUser,
-            @Valid @RequestBody ChangeGuestPasswordRequest request
+            @Valid @RequestBody ChangeGuestPasswordRequest request,
+            HttpServletRequest httpServletRequest
     ) {
-        return ApiResponse.success(guestAccountProfileService.changePassword(sessionUser.userId(), request));
+        GuestAccountPasswordChangeResponse response = guestAccountProfileService.changePassword(sessionUser.userId(), request);
+        sessionLifecycleService.invalidateSession(httpServletRequest);
+        return ApiResponse.success(response);
     }
 
     @GetMapping("/host-role-request")

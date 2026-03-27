@@ -1,482 +1,105 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
-type ApiEnvelope<T> = {
-  success: boolean;
-  data: T;
-  error: { code: string; message: string } | null;
-  timestamp: string;
-};
+import { OpsShell } from './components/ops/OpsShell';
+import { apiRequest } from './lib/api';
+import {
+  blockReasonOptions,
+  buildAdminHostRoleRequestsEndpoint,
+  buildDayOfWeekMask,
+  buildHostAccommodationDetailEndpoint,
+  buildPricePoliciesEndpoint,
+  buildReservationCalendarEndpoint,
+  buildRoomBlocksEndpoint,
+  formatHostRoleRequestStatusFilter,
+  formatStatusFilter,
+  reservationDetailToSummary
+} from './lib/format';
+import type {
+  AccommodationDetail,
+  AccommodationSummary,
+  AdminHostRoleRequest,
+  AdminHostRoleRequestDecisionResponse,
+  AdminTermDetail,
+  AdminTermMutationResponse,
+  AdminTermSummary,
+  AdminPageKey,
+  AdminUserDetail,
+  AdminUserSummary,
+  AssetMutationResponse,
+  AuthenticatedUser,
+  BannerState,
+  HostPageKey,
+  HostRoleRequestStatusFilter,
+  OpsNavItem,
+  OpsPageKey,
+  PricePolicyManagement,
+  PricePolicyMutationResponse,
+  ReservationCalendarView,
+  ReservationDecisionResponse,
+  ReservationDetail,
+  ReservationNightSwapResponse,
+  ReservationReassignmentResponse,
+  ReservationSummary,
+  RoomBlockManagement,
+  RoomBlockMutationResponse,
+  RoomBlockReasonType,
+  StatusFilter
+} from './lib/types';
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { AdminRoleRequestsPage } from './pages/admin/AdminRoleRequestsPage';
+import { AdminTermsPage } from './pages/admin/AdminTermsPage';
+import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { HostPropertiesPage } from './pages/host/HostPropertiesPage';
+import { HostReservationCalendarPage } from './pages/host/HostReservationCalendarPage';
+import { HostDashboardPage } from './pages/host/HostDashboardPage';
+import { LoginPage } from './pages/ops/LoginPage';
+import { PricingPage } from './pages/ops/PricingPage';
+import { ReservationDetailPage } from './pages/ops/ReservationDetailPage';
+import { ReservationsPage } from './pages/ops/ReservationsPage';
+import { RoomBlocksPage } from './pages/ops/RoomBlocksPage';
 
-type ReservationStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED';
-type StatusFilter = 'ALL' | ReservationStatus;
-type RoomBlockStatus = 'ACTIVE' | 'INACTIVE';
-type RoomBlockReasonType = 'MAINTENANCE' | 'HOST_BLOCK' | 'ADMIN_BLOCK' | 'OTHER';
-type PricePolicyStatus = 'ACTIVE' | 'INACTIVE';
-
-type AuthenticatedUser = {
-  userId: number;
-  loginId: string;
-  name: string;
-  role: 'HOST' | 'ADMIN';
-};
-
-type ReservationSummary = {
-  reservationId: number;
-  reservationNo: string;
-  guestUserId: number;
-  guestLoginId: string;
-  guestName: string;
-  accommodationId: number;
-  accommodationName: string;
-  roomTypeId: number;
-  roomTypeName: string;
-  guestCount: number;
-  checkInDate: string;
-  checkOutDate: string;
-  status: ReservationStatus;
-  requestedAt: string;
-  confirmedAt: string | null;
-  cancelledAt: string | null;
-  reassignmentPossible: boolean;
-  hasRelevantBlocks: boolean;
-  hasRelevantPricing: boolean;
-};
-
-type ReservationDetail = {
-  reservationId: number;
-  reservationNo: string;
-  guest: { guestUserId: number; guestLoginId: string; guestName: string };
-  accommodation: { accommodationId: number; accommodationName: string; region: string; address: string };
-  roomType: { roomTypeId: number; roomTypeName: string };
-  guestCount: number;
-  status: ReservationStatus;
-  checkInDate: string;
-  checkOutDate: string;
-  checkInTime: string;
-  checkOutTime: string;
-  requestedAt: string;
-  confirmedAt: string | null;
-  cancelledAt: string | null;
-  reassignmentPossible: boolean;
-  hasRelevantBlocks: boolean;
-  hasRelevantPricing: boolean;
-  nights: Array<{
-    reservationNightId: number;
-    stayDate: string;
-    assignedRoomId: number;
-    assignedRoomCode: string;
-    assignedRoomTypeId: number;
-    assignedRoomTypeName: string;
-    assignedRoomBlocked: boolean;
-    assignedRoomTypeOverride: boolean;
-    reassignmentAllowed: boolean;
-    reassignmentBlockedReason: string | null;
-    availableReassignmentRooms: Array<{
-      roomId: number;
-      roomCode: string;
-      roomTypeId: number;
-      roomTypeName: string;
-    }>;
-  }>;
-  statusHistory: Array<{
-    historyId: number;
-    fromStatus: ReservationStatus | null;
-    toStatus: ReservationStatus;
-    actionType:
-      | 'REQUESTED'
-      | 'HOST_CONFIRMED'
-      | 'HOST_REJECTED'
-      | 'GUEST_CANCELLED'
-      | 'HOST_CANCELLED'
-      | 'ADMIN_CANCELLED';
-    changedByUserId: number;
-    changedByLoginId: string;
-    changedByName: string;
-    reasonType: string | null;
-    reasonText: string | null;
-    changedAt: string;
-  }>;
-  blockContexts: Array<{
-    blockId: number;
-    roomId: number;
-    roomCode: string;
-    roomTypeId: number;
-    roomTypeName: string;
-    startDate: string;
-    endDate: string;
-    reasonType: string;
-    reasonText: string | null;
-  }>;
-  pricingPolicies: Array<{
-    policyId: number;
-    roomTypeId: number;
-    roomTypeName: string;
-    policyName: string;
-    startDate: string;
-    endDate: string;
-    deltaAmount: number;
-    dayOfWeekMask: number | null;
-  }>;
-};
-
-type ReservationDecisionResponse = {
-  reservationId: number;
-  reservationNo: string;
-  status: ReservationStatus;
-  changedAt: string;
-};
-
-type ReservationReassignmentResponse = {
-  reservationId: number;
-  reservationNo: string;
-  changedNightCount: number;
-  changedAt: string;
-};
-
-type RoomBlockManagement = {
-  selectedAccommodationId: number | null;
-  selectedRoomId: number | null;
-  accommodations: Array<{
-    accommodationId: number;
-    accommodationName: string;
-    region: string;
-  }>;
-  rooms: Array<{
-    roomId: number;
-    accommodationId: number;
-    roomTypeId: number;
-    roomTypeName: string;
-    roomCode: string;
-  }>;
-  blocks: Array<{
-    blockId: number;
-    accommodationId: number;
-    accommodationName: string;
-    roomId: number;
-    roomCode: string;
-    roomTypeId: number;
-    roomTypeName: string;
-    startDate: string;
-    endDate: string;
-    reasonType: string;
-    reasonText: string | null;
-    status: RoomBlockStatus;
-    createdByUserId: number;
-    createdByLoginId: string;
-    createdByName: string;
-    createdAt: string;
-  }>;
-};
-
-type RoomBlockMutationResponse = {
-  blockId: number;
-  accommodationId: number;
-  accommodationName: string;
-  roomId: number;
-  roomCode: string;
-  status: RoomBlockStatus;
-  reasonType: string;
-  reasonText: string | null;
-  startDate: string;
-  endDate: string;
-  changedAt: string;
-};
-
-type PricePolicyManagement = {
-  selectedAccommodationId: number | null;
-  selectedRoomTypeId: number | null;
-  accommodations: Array<{
-    accommodationId: number;
-    accommodationName: string;
-    region: string;
-  }>;
-  roomTypes: Array<{
-    roomTypeId: number;
-    accommodationId: number;
-    roomTypeName: string;
-    basePrice: number;
-  }>;
-  policies: Array<{
-    policyId: number;
-    accommodationId: number;
-    accommodationName: string;
-    roomTypeId: number;
-    roomTypeName: string;
-    policyName: string;
-    startDate: string;
-    endDate: string;
-    deltaAmount: number;
-    dayOfWeekMask: number | null;
-    status: PricePolicyStatus;
-    createdAt: string;
-  }>;
-};
-
-type PricePolicyMutationResponse = {
-  policyId: number;
-  accommodationId: number;
-  accommodationName: string;
-  roomTypeId: number;
-  roomTypeName: string;
-  policyName: string;
-  startDate: string;
-  endDate: string;
-  deltaAmount: number;
-  dayOfWeekMask: number | null;
-  status: PricePolicyStatus;
-  changedAt: string;
-};
-
-type AdminUserSummary = {
-  userId: number;
-  loginId: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  role: 'GUEST' | 'HOST' | 'ADMIN';
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-  createdAt: string;
-  failedLoginCount: number;
-  lockedUntil: string | null;
-  lastLoginAt: string | null;
-  latestHostRoleRequestStatus: 'PENDING' | 'APPROVED' | 'DENIED' | null;
-};
-
-type AdminUserDetail = {
-  userId: number;
-  loginId: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  role: 'GUEST' | 'HOST' | 'ADMIN';
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-  createdAt: string;
-  updatedAt: string;
-  failedLoginCount: number;
-  lastFailedAt: string | null;
-  lockedUntil: string | null;
-  lastLoginAt: string | null;
-  passwordChangedAt: string | null;
-};
-
-type HostRoleRequestStatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'DENIED';
-
-type AdminHostRoleRequest = {
-  requestId: number;
-  userId: number;
-  userLoginId: string;
-  userName: string;
-  userEmail: string | null;
-  userPhone: string | null;
-  userRole: 'GUEST' | 'HOST' | 'ADMIN';
-  userStatus: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-  requestReason: string;
-  status: 'PENDING' | 'APPROVED' | 'DENIED';
-  reviewedByUserId: number | null;
-  reviewedByLoginId: string | null;
-  reviewedByName: string | null;
-  reviewReason: string | null;
-  createdAt: string;
-  reviewedAt: string | null;
-};
-
-type AdminHostRoleRequestDecisionResponse = {
-  requestId: number;
-  userId: number;
-  status: 'APPROVED' | 'DENIED';
-  userRole: 'GUEST' | 'HOST' | 'ADMIN';
-  reviewReason: string | null;
-  reviewedAt: string;
-};
-
-type BannerState = { tone: 'success' | 'error' | 'info'; text: string } | null;
-
-const statusFilters: StatusFilter[] = ['ALL', 'PENDING', 'CONFIRMED', 'CANCELLED'];
-const hostRoleRequestStatusFilters: HostRoleRequestStatusFilter[] = ['PENDING', 'APPROVED', 'DENIED', 'ALL'];
-const pricingWeekdayOptions = [
-  { label: 'Mon', bit: 1 },
-  { label: 'Tue', bit: 2 },
-  { label: 'Wed', bit: 4 },
-  { label: 'Thu', bit: 8 },
-  { label: 'Fri', bit: 16 },
-  { label: 'Sat', bit: 32 },
-  { label: 'Sun', bit: 64 }
+const hostNavItems: OpsNavItem[] = [
+  { key: 'reservation-calendar', label: 'Calendar' },
+  { key: 'reservations', label: 'Reservations' },
+  { key: 'properties', label: 'Properties' },
+  { key: 'room-blocks', label: 'Room blocks' },
+  { key: 'pricing', label: 'Pricing' },
+  { key: 'dashboard', label: 'Dashboard' }
 ];
 
-async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-    ...init
-  });
-  let envelope: ApiEnvelope<T> | null = null;
-  try {
-    envelope = (await response.json()) as ApiEnvelope<T>;
-  } catch {
-    envelope = null;
-  }
-  if (!response.ok || !envelope?.success) {
-    const errorMessage = envelope?.error?.message ?? 'Request failed.';
-    const errorCode = envelope?.error?.code ?? 'UNKNOWN';
-    const error = new Error(errorMessage) as Error & { status?: number; code?: string };
-    error.status = response.status;
-    error.code = errorCode;
-    throw error;
-  }
-  return envelope.data;
-}
-
-function formatTimestamp(value: string | null) {
-  return value ? new Date(value).toLocaleString('ko-KR') : 'Not yet';
-}
-
-function formatStatusFilter(filter: StatusFilter) {
-  return filter === 'ALL' ? 'All' : filter;
-}
-
-function formatReservationAction(actionType: ReservationDetail['statusHistory'][number]['actionType']) {
-  switch (actionType) {
-    case 'REQUESTED':
-      return 'Requested';
-    case 'HOST_CONFIRMED':
-      return 'Host confirmed';
-    case 'HOST_REJECTED':
-      return 'Host rejected';
-    case 'GUEST_CANCELLED':
-      return 'Guest cancelled';
-    case 'HOST_CANCELLED':
-      return 'Host cancelled';
-    case 'ADMIN_CANCELLED':
-      return 'Admin cancelled';
-  }
-}
-
-function formatBlockReasonType(reasonType: string) {
-  switch (reasonType) {
-    case 'MAINTENANCE':
-      return 'Maintenance';
-    case 'HOST_BLOCK':
-      return 'Host block';
-    case 'ADMIN_BLOCK':
-      return 'Admin block';
-    case 'OTHER':
-      return 'Other';
-    default:
-      return reasonType;
-  }
-}
-
-function blockReasonOptions(role: AuthenticatedUser['role'] | undefined): Array<{
-  value: RoomBlockReasonType;
-  label: string;
-}> {
-  if (role === 'ADMIN') {
-    return [
-      { value: 'MAINTENANCE', label: 'Maintenance' },
-      { value: 'ADMIN_BLOCK', label: 'Admin block' },
-      { value: 'OTHER', label: 'Other' }
-    ];
-  }
-  return [
-    { value: 'MAINTENANCE', label: 'Maintenance' },
-    { value: 'HOST_BLOCK', label: 'Host block' },
-    { value: 'OTHER', label: 'Other' }
-  ];
-}
-
-function reservationDetailToSummary(reservationDetail: ReservationDetail): ReservationSummary {
-  return {
-    reservationId: reservationDetail.reservationId,
-    reservationNo: reservationDetail.reservationNo,
-    guestUserId: reservationDetail.guest.guestUserId,
-    guestLoginId: reservationDetail.guest.guestLoginId,
-    guestName: reservationDetail.guest.guestName,
-    accommodationId: reservationDetail.accommodation.accommodationId,
-    accommodationName: reservationDetail.accommodation.accommodationName,
-    roomTypeId: reservationDetail.roomType.roomTypeId,
-    roomTypeName: reservationDetail.roomType.roomTypeName,
-    guestCount: reservationDetail.guestCount,
-    checkInDate: reservationDetail.checkInDate,
-    checkOutDate: reservationDetail.checkOutDate,
-    status: reservationDetail.status,
-    requestedAt: reservationDetail.requestedAt,
-    confirmedAt: reservationDetail.confirmedAt,
-    cancelledAt: reservationDetail.cancelledAt,
-    reassignmentPossible: reservationDetail.reassignmentPossible,
-    hasRelevantBlocks: reservationDetail.hasRelevantBlocks,
-    hasRelevantPricing: reservationDetail.hasRelevantPricing
-  };
-}
-
-function buildRoomBlocksEndpoint(accommodationId: number | null, roomId: number | null) {
-  const params = new URLSearchParams();
-  if (accommodationId !== null) {
-    params.set('accommodationId', String(accommodationId));
-  }
-  if (roomId !== null) {
-    params.set('roomId', String(roomId));
-  }
-  const query = params.toString();
-  return query ? `/api/v1/room-blocks?${query}` : '/api/v1/room-blocks';
-}
-
-function buildPricePoliciesEndpoint(accommodationId: number | null, roomTypeId: number | null) {
-  const params = new URLSearchParams();
-  if (accommodationId !== null) {
-    params.set('accommodationId', String(accommodationId));
-  }
-  if (roomTypeId !== null) {
-    params.set('roomTypeId', String(roomTypeId));
-  }
-  const query = params.toString();
-  return query ? `/api/v1/price-policies?${query}` : '/api/v1/price-policies';
-}
-
-function formatPriceDelta(deltaAmount: number) {
-  const sign = deltaAmount >= 0 ? '+' : '-';
-  return `${sign}${Math.abs(deltaAmount).toLocaleString('ko-KR')} KRW`;
-}
-
-function formatPricingDayMask(dayOfWeekMask: number | null) {
-  if (dayOfWeekMask === null) {
-    return 'All days';
-  }
-  const labels = pricingWeekdayOptions
-    .filter((option) => (dayOfWeekMask & option.bit) !== 0)
-    .map((option) => option.label);
-  return labels.length === 0 ? 'No active days' : labels.join(', ');
-}
-
-function buildDayOfWeekMask(selectedBits: number[]) {
-  if (selectedBits.length === 0) {
-    return null;
-  }
-  return selectedBits.reduce((total, bit) => total + bit, 0);
-}
-
-function formatHostRoleRequestStatusFilter(filter: HostRoleRequestStatusFilter) {
-  return filter === 'ALL' ? 'All' : filter;
-}
-
-function buildAdminHostRoleRequestsEndpoint(filter: HostRoleRequestStatusFilter) {
-  if (filter === 'ALL') {
-    return '/api/v1/admin/host-role-requests';
-  }
-  return `/api/v1/admin/host-role-requests?status=${filter}`;
-}
+const adminNavItems: OpsNavItem[] = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'users', label: 'Users' },
+  { key: 'role-requests', label: 'Role requests' },
+  { key: 'terms', label: 'Terms' },
+  { key: 'reservations', label: 'Reservations' },
+  { key: 'room-blocks', label: 'Room blocks' },
+  { key: 'pricing', label: 'Pricing' },
+  { key: 'reservation-detail', label: 'Reservation detail' }
+];
 
 function App() {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const [currentPage, setCurrentPage] = useState<OpsPageKey>('dashboard');
+  const [accommodations, setAccommodations] = useState<AccommodationSummary[]>([]);
+  const [selectedAccommodationId, setSelectedAccommodationId] = useState<number | null>(null);
+  const [accommodationDetail, setAccommodationDetail] = useState<AccommodationDetail | null>(null);
+  const [creatingAccommodation, setCreatingAccommodation] = useState(false);
+  const [loadingAccommodations, setLoadingAccommodations] = useState(false);
+  const [loadingAccommodationDetail, setLoadingAccommodationDetail] = useState(false);
+  const [mutatingAssetId, setMutatingAssetId] = useState<string | null>(null);
+  const [reservationCalendar, setReservationCalendar] = useState<ReservationCalendarView | null>(null);
   const [reservations, setReservations] = useState<ReservationSummary[]>([]);
   const [selectedReservationId, setSelectedReservationId] = useState<number | null>(null);
   const [reservationDetail, setReservationDetail] = useState<ReservationDetail | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING');
   const [banner, setBanner] = useState<BannerState>(null);
-  const [loginId, setLoginId] = useState('host.demo');
-  const [password, setPassword] = useState('hostpass123!');
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
   const [initializing, setInitializing] = useState(true);
   const [loggingIn, setLoggingIn] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingReservationCalendar, setLoadingReservationCalendar] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [decisioningReservationId, setDecisioningReservationId] = useState<number | null>(null);
   const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
@@ -518,21 +141,44 @@ function App() {
   const [loadingHostRoleRequestDetail, setLoadingHostRoleRequestDetail] = useState(false);
   const [reviewingHostRoleRequestId, setReviewingHostRoleRequestId] = useState<number | null>(null);
   const [adminReviewReason, setAdminReviewReason] = useState('');
+  const [adminTerms, setAdminTerms] = useState<AdminTermSummary[]>([]);
+  const [selectedAdminTermId, setSelectedAdminTermId] = useState<number | null>(null);
+  const [adminTermDetail, setAdminTermDetail] = useState<AdminTermDetail | null>(null);
+  const [loadingAdminTerms, setLoadingAdminTerms] = useState(false);
+  const [loadingAdminTermDetail, setLoadingAdminTermDetail] = useState(false);
+  const [creatingTermDraftId, setCreatingTermDraftId] = useState<number | null>(null);
+  const [savingAdminTermId, setSavingAdminTermId] = useState<number | null>(null);
+  const [publishingAdminTermId, setPublishingAdminTermId] = useState<number | null>(null);
+  const [calendarStartDate, setCalendarStartDate] = useState(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
+  );
 
   useEffect(() => {
     void bootstrapSession();
   }, []);
+
+  const isAdmin = user?.role === 'ADMIN';
+  const navItems = useMemo(() => (isAdmin ? adminNavItems : hostNavItems), [isAdmin]);
+  const selectedReservationSummary =
+    selectedReservationId === null
+      ? null
+      : reservations.find((reservation) => reservation.reservationId === selectedReservationId) ??
+        (reservationDetail ? reservationDetailToSummary(reservationDetail) : null);
+  const roomBlockReasonChoices = blockReasonOptions(user?.role);
 
   async function bootstrapSession() {
     setInitializing(true);
     try {
       const currentUser = await apiRequest<AuthenticatedUser>('/api/v1/auth/me', { method: 'GET' });
       setUser(currentUser);
+      setCurrentPage(currentUser.role === 'ADMIN' ? 'dashboard' : 'reservation-calendar');
       await loadReservations(false, statusFilter);
       await loadRoomBlocks(false, null, null, currentUser);
       await loadPricePolicies(false, null, null);
       if (currentUser.role === 'ADMIN') {
-        await Promise.all([loadAdminUsers(false), loadHostRoleRequests(false, hostRoleRequestFilter)]);
+        await Promise.all([loadAdminUsers(false), loadHostRoleRequests(false, hostRoleRequestFilter), loadAdminTerms(false)]);
+      } else {
+        await Promise.all([loadReservationCalendar(false, null, calendarStartDate), loadAccommodations(false)]);
       }
     } catch (error) {
       const apiError = error as Error & { status?: number };
@@ -547,14 +193,28 @@ function App() {
 
   function resetOpsState() {
     setUser(null);
+    setCurrentPage('dashboard');
+    setAccommodations([]);
+    setSelectedAccommodationId(null);
+    setAccommodationDetail(null);
+    setCreatingAccommodation(false);
+    setLoadingAccommodations(false);
+    setLoadingAccommodationDetail(false);
+    setMutatingAssetId(null);
+    setReservationCalendar(null);
+    setStatusFilter('PENDING');
     setReservations([]);
     setSelectedReservationId(null);
     setReservationDetail(null);
+    setRefreshing(false);
+    setLoadingReservationCalendar(false);
+    setLoadingDetail(false);
     setRejectReasons({});
     setReassignmentSelections({});
     setDecisioningReservationId(null);
     setReassigningNightId(null);
     setRoomBlockManagement(null);
+    setLoadingRoomBlocks(false);
     setBlockAccommodationId('');
     setBlockRoomFilterId('ALL');
     setNewBlockRoomId('');
@@ -589,6 +249,17 @@ function App() {
     setLoadingHostRoleRequestDetail(false);
     setReviewingHostRoleRequestId(null);
     setAdminReviewReason('');
+    setAdminTerms([]);
+    setSelectedAdminTermId(null);
+    setAdminTermDetail(null);
+    setLoadingAdminTerms(false);
+    setLoadingAdminTermDetail(false);
+    setCreatingTermDraftId(null);
+    setSavingAdminTermId(null);
+    setPublishingAdminTermId(null);
+    setLoginId('');
+    setPassword('');
+    setCalendarStartDate(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()));
   }
 
   function reservationsEndpoint(filter: StatusFilter) {
@@ -608,12 +279,15 @@ function App() {
     }
   }
 
-  async function loadReservationDetail(reservationId: number, showBanner = false) {
+  async function loadReservationDetail(reservationId: number, showBanner = false, navigateToDetail = true) {
     setLoadingDetail(true);
     try {
       const data = await apiRequest<ReservationDetail>(`/api/v1/reservations/${reservationId}`, { method: 'GET' });
       setSelectedReservationId(reservationId);
       setReservationDetail(data);
+      if (navigateToDetail) {
+        setCurrentPage('reservation-detail');
+      }
       setReassignmentSelections((current) => {
         const next = { ...current };
         for (const night of data.nights) {
@@ -628,6 +302,40 @@ function App() {
       }
     } finally {
       setLoadingDetail(false);
+    }
+  }
+
+  async function loadReservationCalendar(
+    showBanner = true,
+    accommodationId: number | null = reservationCalendar?.selectedAccommodationId ?? null,
+    startDate = calendarStartDate,
+    keepCurrentSelection = true
+  ) {
+    setLoadingReservationCalendar(true);
+    try {
+      const data = await apiRequest<ReservationCalendarView>(buildReservationCalendarEndpoint(accommodationId, startDate, 365), {
+        method: 'GET'
+      });
+      setReservationCalendar(data);
+      setCalendarStartDate(data.startDate);
+
+      const nextSelectedReservationId =
+        keepCurrentSelection && selectedReservationId !== null && data.reservations.some((item) => item.reservationId === selectedReservationId)
+          ? selectedReservationId
+          : data.reservations[0]?.reservationId ?? null;
+
+      if (nextSelectedReservationId === null) {
+        setSelectedReservationId(null);
+        setReservationDetail(null);
+      } else {
+        await loadReservationDetail(nextSelectedReservationId, false, false);
+      }
+
+      if (showBanner) {
+        setBanner({ tone: 'info', text: 'Reservation calendar refreshed.' });
+      }
+    } finally {
+      setLoadingReservationCalendar(false);
     }
   }
 
@@ -666,11 +374,7 @@ function App() {
     }
   }
 
-  async function loadPricePolicies(
-    showBanner = true,
-    accommodationId: number | null = null,
-    roomTypeId: number | null = null
-  ) {
+  async function loadPricePolicies(showBanner = true, accommodationId: number | null = null, roomTypeId: number | null = null) {
     setLoadingPricePolicies(true);
     try {
       const data = await apiRequest<PricePolicyManagement>(buildPricePoliciesEndpoint(accommodationId, roomTypeId), {
@@ -690,6 +394,49 @@ function App() {
       }
     } finally {
       setLoadingPricePolicies(false);
+    }
+  }
+
+  async function loadAccommodations(showBanner = true) {
+    setLoadingAccommodations(true);
+    try {
+      const data = await apiRequest<AccommodationSummary[]>('/api/v1/host/accommodations', { method: 'GET' });
+      setAccommodations(data);
+      const nextAccommodationId =
+        selectedAccommodationId !== null && data.some((item) => item.accommodationId === selectedAccommodationId)
+          ? selectedAccommodationId
+          : data[0]?.accommodationId ?? null;
+      const selectionChanged = nextAccommodationId !== selectedAccommodationId;
+      setSelectedAccommodationId(nextAccommodationId);
+      if (nextAccommodationId !== null) {
+        setCreatingAccommodation(false);
+        if (selectionChanged) {
+          setAccommodationDetail(null);
+        }
+        await loadAccommodationDetail(nextAccommodationId, false);
+      } else {
+        setAccommodationDetail(null);
+      }
+      if (showBanner) {
+        setBanner({ tone: 'info', text: 'Properties refreshed.' });
+      }
+    } finally {
+      setLoadingAccommodations(false);
+    }
+  }
+
+  async function loadAccommodationDetail(accommodationId: number, showBanner = false) {
+    setLoadingAccommodationDetail(true);
+    try {
+      const data = await apiRequest<AccommodationDetail>(buildHostAccommodationDetailEndpoint(accommodationId), { method: 'GET' });
+      setSelectedAccommodationId(accommodationId);
+      setAccommodationDetail(data);
+      setCreatingAccommodation(false);
+      if (showBanner) {
+        setBanner({ tone: 'info', text: `Property ${data.name} refreshed.` });
+      }
+    } finally {
+      setLoadingAccommodationDetail(false);
     }
   }
 
@@ -733,9 +480,7 @@ function App() {
   async function loadHostRoleRequests(showBanner = true, filter = hostRoleRequestFilter) {
     setLoadingHostRoleRequests(true);
     try {
-      const data = await apiRequest<AdminHostRoleRequest[]>(buildAdminHostRoleRequestsEndpoint(filter), {
-        method: 'GET'
-      });
+      const data = await apiRequest<AdminHostRoleRequest[]>(buildAdminHostRoleRequestsEndpoint(filter), { method: 'GET' });
       setAdminHostRoleRequests(data);
       const nextSelectedRequestId =
         selectedHostRoleRequestId !== null && data.some((item) => item.requestId === selectedHostRoleRequestId)
@@ -771,69 +516,123 @@ function App() {
     }
   }
 
-  async function refreshListAndDetail(reservationId: number | null = selectedReservationId, filter = statusFilter) {
-    await loadReservations(false, filter);
-    if (reservationId !== null) {
-      await loadReservationDetail(reservationId, false);
+  async function loadAdminTerms(showBanner = true) {
+    setLoadingAdminTerms(true);
+    try {
+      const data = await apiRequest<AdminTermSummary[]>('/api/v1/admin/terms', { method: 'GET' });
+      setAdminTerms(data);
+      const nextSelectedTermId =
+        selectedAdminTermId !== null && data.some((item) => item.termId === selectedAdminTermId)
+          ? selectedAdminTermId
+          : data[0]?.termId ?? null;
+      if (nextSelectedTermId !== null) {
+        await loadAdminTermDetail(nextSelectedTermId, false);
+      } else {
+        setSelectedAdminTermId(null);
+        setAdminTermDetail(null);
+      }
+      if (showBanner) {
+        setBanner({ tone: 'info', text: 'Admin terms refreshed.' });
+      }
+    } finally {
+      setLoadingAdminTerms(false);
     }
   }
 
-  async function refreshRoomBlocksAndDetail() {
-    const selectedAccommodation =
-      blockAccommodationId === '' ? roomBlockManagement?.selectedAccommodationId ?? null : Number(blockAccommodationId);
-    const selectedRoom = blockRoomFilterId === 'ALL' ? null : Number(blockRoomFilterId);
-    await loadRoomBlocks(false, selectedAccommodation, selectedRoom);
+  async function loadAdminTermDetail(termId: number, showBanner = false) {
+    setLoadingAdminTermDetail(true);
+    try {
+      const data = await apiRequest<AdminTermDetail>(`/api/v1/admin/terms/${termId}`, { method: 'GET' });
+      setSelectedAdminTermId(termId);
+      setAdminTermDetail(data);
+      if (showBanner) {
+        setBanner({ tone: 'info', text: `Term v${data.version} refreshed.` });
+      }
+    } finally {
+      setLoadingAdminTermDetail(false);
+    }
+  }
+
+  async function refreshListAndDetail(nextFilter = statusFilter) {
+    await loadReservations(false, nextFilter);
     if (selectedReservationId !== null) {
-      await loadReservationDetail(selectedReservationId, false);
+      await loadReservationDetail(selectedReservationId, false, false);
     }
   }
 
-  async function refreshPricePoliciesAndDetail() {
-    const selectedAccommodation =
-      pricingAccommodationId === ''
-        ? pricePolicyManagement?.selectedAccommodationId ?? null
-        : Number(pricingAccommodationId);
-    const selectedRoomType = pricingRoomTypeFilterId === 'ALL' ? null : Number(pricingRoomTypeFilterId);
-    await loadPricePolicies(false, selectedAccommodation, selectedRoomType);
-    if (selectedReservationId !== null) {
-      await loadReservationDetail(selectedReservationId, false);
-    }
-  }
-
-  async function refreshAdminContext(
-    nextRequestId: number | null = selectedHostRoleRequestId,
-    nextUserId: number | null = selectedAdminUserId,
-    filter = hostRoleRequestFilter
+  async function refreshHostCalendar(
+    accommodationId: number | null = reservationCalendar?.selectedAccommodationId ?? null,
+    startDate = calendarStartDate
   ) {
-    await loadAdminUsers(false);
-    if (nextUserId !== null) {
-      await loadAdminUserDetail(nextUserId, false);
+    if (isAdmin || !user) {
+      return;
     }
-    await loadHostRoleRequests(false, filter);
-    if (nextRequestId !== null) {
-      await loadHostRoleRequestDetail(nextRequestId, false);
+
+    await loadReservationCalendar(false, accommodationId, startDate);
+  }
+
+  async function refreshRoomBlocksAndDetail(
+    accommodationId: number | null = blockAccommodationId ? Number(blockAccommodationId) : null,
+    roomId: number | null = blockRoomFilterId === 'ALL' ? null : Number(blockRoomFilterId)
+  ) {
+    await loadRoomBlocks(false, accommodationId, roomId);
+    if (selectedReservationId !== null) {
+      await loadReservationDetail(selectedReservationId, false, false);
     }
+    await refreshHostCalendar(accommodationId, calendarStartDate);
+  }
+
+  async function refreshPricePoliciesAndDetail(
+    accommodationId: number | null = pricingAccommodationId ? Number(pricingAccommodationId) : null,
+    roomTypeId: number | null = pricingRoomTypeFilterId === 'ALL' ? null : Number(pricingRoomTypeFilterId)
+  ) {
+    await loadPricePolicies(false, accommodationId, roomTypeId);
+    if (selectedReservationId !== null) {
+      await loadReservationDetail(selectedReservationId, false, false);
+    }
+  }
+
+  async function refreshAdminContext(nextFilter = hostRoleRequestFilter) {
+    if (!isAdmin) {
+      return;
+    }
+
+    await Promise.all([loadAdminUsers(false), loadHostRoleRequests(false, nextFilter), loadAdminTerms(false)]);
   }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoggingIn(true);
+    setBanner(null);
+
     try {
-      const loggedInUser = await apiRequest<AuthenticatedUser>('/api/v1/auth/login', {
+      const nextUser = await apiRequest<AuthenticatedUser>('/api/v1/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ loginId, password })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          loginId,
+          password
+        })
       });
-      setUser(loggedInUser);
+
+      setUser(nextUser);
+      setCurrentPage(nextUser.role === 'ADMIN' ? 'dashboard' : 'reservation-calendar');
       await loadReservations(false, statusFilter);
-      await loadRoomBlocks(false, null, null, loggedInUser);
+      await loadRoomBlocks(false, null, null, nextUser);
       await loadPricePolicies(false, null, null);
-      if (loggedInUser.role === 'ADMIN') {
-        await Promise.all([loadAdminUsers(false), loadHostRoleRequests(false, hostRoleRequestFilter)]);
+      if (nextUser.role === 'ADMIN') {
+        await Promise.all([loadAdminUsers(false), loadHostRoleRequests(false, hostRoleRequestFilter), loadAdminTerms(false)]);
+      } else {
+        await Promise.all([loadReservationCalendar(false, null, calendarStartDate, false), loadAccommodations(false)]);
       }
-      setBanner({ tone: 'success', text: `Signed in as ${loggedInUser.loginId}.` });
+      setBanner({
+        tone: 'success',
+        text: `${nextUser.role === 'ADMIN' ? 'Admin' : 'Host'} session ready for ${nextUser.name}.`
+      });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setLoggingIn(false);
     }
@@ -843,8 +642,9 @@ function App() {
     try {
       await apiRequest('/api/v1/auth/logout', { method: 'POST' });
     } catch {
-      // Session invalidation is best-effort only.
+      // Best-effort logout; local state should still clear.
     }
+
     resetOpsState();
     setBanner({ tone: 'info', text: 'Signed out.' });
   }
@@ -854,46 +654,51 @@ function App() {
     try {
       await loadHostRoleRequests(true, filter);
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     }
   }
 
   async function handleFilterChange(filter: StatusFilter) {
     setStatusFilter(filter);
     try {
-      await loadReservations(false, filter);
-      setBanner({ tone: 'info', text: `${formatStatusFilter(filter)} filter applied.` });
+      await loadReservations(true, filter);
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     }
   }
 
-  async function handleOpenDetail(reservationId: number, showBanner = true) {
+  async function handleOpenDetail(reservationId: number) {
     try {
-      await loadReservationDetail(reservationId, showBanner);
+      await loadReservationDetail(reservationId, true);
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
+    }
+  }
+
+  async function handleOpenReservationInCalendar(reservation: ReservationSummary) {
+    setCurrentPage('reservation-calendar');
+    setCalendarStartDate(reservation.checkInDate);
+
+    try {
+      await loadReservationCalendar(false, reservation.accommodationId, reservation.checkInDate, false);
+      await loadReservationDetail(reservation.reservationId, false, false);
+      setBanner({ tone: 'info', text: `Reservation ${reservation.reservationNo} opened in calendar.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
     }
   }
 
   async function handleApprove(reservation: ReservationSummary) {
     setDecisioningReservationId(reservation.reservationId);
     try {
-      const decision = await apiRequest<ReservationDecisionResponse>(
-        `/api/v1/reservations/${reservation.reservationId}/approve`,
-        { method: 'POST' }
-      );
-      await refreshListAndDetail(reservation.reservationId);
-      setBanner({
-        tone: 'success',
-        text: `Reservation ${decision.reservationNo} moved to ${decision.status}.`
+      const data = await apiRequest<ReservationDecisionResponse>(`/api/v1/reservations/${reservation.reservationId}/approve`, {
+        method: 'POST'
       });
+      await refreshListAndDetail();
+      await refreshHostCalendar();
+      setBanner({ tone: 'success', text: `Reservation ${data.reservationNo} approved.` });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setDecisioningReservationId(null);
     }
@@ -902,126 +707,494 @@ function App() {
   async function handleReject(reservation: ReservationSummary) {
     setDecisioningReservationId(reservation.reservationId);
     try {
-      const decision = await apiRequest<ReservationDecisionResponse>(
-        `/api/v1/reservations/${reservation.reservationId}/reject`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ reasonText: rejectReasons[reservation.reservationId]?.trim() || null })
-        }
-      );
-      setRejectReasons((current) => ({ ...current, [reservation.reservationId]: '' }));
-      await refreshListAndDetail(reservation.reservationId);
-      setBanner({
-        tone: 'success',
-        text: `Reservation ${decision.reservationNo} moved to ${decision.status}.`
+      const reasonText = (rejectReasons[reservation.reservationId] ?? '').trim();
+      const data = await apiRequest<ReservationDecisionResponse>(`/api/v1/reservations/${reservation.reservationId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: reasonText ? JSON.stringify({ reasonText }) : undefined
       });
+      setRejectReasons((current) => ({ ...current, [reservation.reservationId]: '' }));
+      await refreshListAndDetail();
+      await refreshHostCalendar();
+      setBanner({ tone: 'success', text: `Reservation ${data.reservationNo} rejected.` });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setDecisioningReservationId(null);
+    }
+  }
+
+  async function handleCancel(reservation: ReservationSummary, reasonText: string) {
+    const normalizedReasonText = reasonText.trim();
+    if (!normalizedReasonText) {
+      setBanner({ tone: 'error', text: 'Enter a cancellation reason before cancelling the reservation.' });
+      return;
+    }
+    if (!window.confirm(`Cancel reservation ${reservation.reservationNo}?`)) {
+      return;
+    }
+
+    setDecisioningReservationId(reservation.reservationId);
+    try {
+      const data = await apiRequest<ReservationDecisionResponse>(`/api/v1/reservations/${reservation.reservationId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reasonText: normalizedReasonText })
+      });
+      await refreshListAndDetail();
+      await refreshHostCalendar();
+      setBanner({ tone: 'success', text: `Reservation ${data.reservationNo} cancelled.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setDecisioningReservationId(null);
     }
   }
 
   async function handleReassignNight(night: ReservationDetail['nights'][number]) {
-    const selectedRoomId = Number(reassignmentSelections[night.reservationNightId]);
-    if (!selectedRoomId || !reservationDetail) {
-      setBanner({ tone: 'error', text: 'Choose a replacement room first.' });
+    if (!reservationDetail) {
+      return;
+    }
+
+    const assignedRoomId = reassignmentSelections[night.reservationNightId];
+    if (!assignedRoomId) {
+      setBanner({ tone: 'error', text: 'Choose one replacement room before reassigning.' });
       return;
     }
 
     setReassigningNightId(night.reservationNightId);
     try {
-      const result = await apiRequest<ReservationReassignmentResponse>(
-        `/api/v1/reservations/${reservationDetail.reservationId}/reassign`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            changes: [{ reservationNightId: night.reservationNightId, assignedRoomId: selectedRoomId }]
-          })
-        }
-      );
-      await refreshListAndDetail(reservationDetail.reservationId);
+      const data = await apiRequest<ReservationReassignmentResponse>(`/api/v1/reservations/${reservationDetail.reservationId}/reassign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          changes: [
+            {
+              reservationNightId: night.reservationNightId,
+              assignedRoomId: Number(assignedRoomId)
+            }
+          ]
+        })
+      });
+      await refreshListAndDetail();
+      await refreshHostCalendar();
       setBanner({
         tone: 'success',
-        text: `Reservation ${result.reservationNo} reassigned for ${result.changedNightCount} night(s).`
+        text: `${data.changedNightCount} night updated for reservation ${data.reservationNo}.`
       });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setReassigningNightId(null);
     }
   }
 
-  async function handleAccommodationBlockFilterChange(accommodationId: string) {
-    setBlockAccommodationId(accommodationId);
+  async function handleCalendarReassignNight(
+    assignmentCell: ReservationCalendarView['assignmentCells'][number],
+    targetRoomId: number
+  ) {
+    setReassigningNightId(assignmentCell.reservationNightId);
+    try {
+      const data = await apiRequest<ReservationReassignmentResponse>(
+        `/api/v1/reservations/${assignmentCell.reservationId}/reassign`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            changes: [
+              {
+                reservationNightId: assignmentCell.reservationNightId,
+                assignedRoomId: targetRoomId
+              }
+            ]
+          })
+        }
+      );
+      await refreshListAndDetail();
+      await refreshHostCalendar();
+      setBanner({
+        tone: 'success',
+        text: `${data.changedNightCount} night updated for reservation ${data.reservationNo}.`
+      });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setReassigningNightId(null);
+    }
+  }
+
+  async function handleCalendarSwapNights(
+    sourceCell: ReservationCalendarView['assignmentCells'][number],
+    targetCell: ReservationCalendarView['assignmentCells'][number]
+  ) {
+    setReassigningNightId(sourceCell.reservationNightId);
+    try {
+      const data = await apiRequest<ReservationNightSwapResponse>('/api/v1/reservations/swap-nights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sourceReservationId: sourceCell.reservationId,
+          sourceReservationNightId: sourceCell.reservationNightId,
+          targetReservationId: targetCell.reservationId,
+          targetReservationNightId: targetCell.reservationNightId
+        })
+      });
+      await refreshListAndDetail();
+      await refreshHostCalendar();
+      setBanner({
+        tone: 'success',
+        text: `Swapped ${data.sourceReservationNo} and ${data.targetReservationNo} for ${data.stayDate}.`
+      });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setReassigningNightId(null);
+    }
+  }
+
+  async function handleCalendarAccommodationChange(value: string) {
+    try {
+      await loadReservationCalendar(true, Number(value), calendarStartDate, false);
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    }
+  }
+
+  async function handleCalendarStartDateChange(value: string) {
+    setCalendarStartDate(value);
+    try {
+      await loadReservationCalendar(true, reservationCalendar?.selectedAccommodationId ?? null, value, false);
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    }
+  }
+
+  async function handleCalendarReservationSelect(reservationId: number) {
+    try {
+      await loadReservationDetail(reservationId, false, false);
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    }
+  }
+
+  async function handleSelectAccommodation(accommodationId: number) {
+    setCreatingAccommodation(false);
+    setSelectedAccommodationId(accommodationId);
+    setAccommodationDetail(null);
+
+    try {
+      await loadAccommodationDetail(accommodationId, false);
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    }
+  }
+
+  function handleStartCreateAccommodation() {
+    setCreatingAccommodation(true);
+    setSelectedAccommodationId(null);
+    setAccommodationDetail(null);
+  }
+
+  async function handleCreateAccommodation(form: {
+    name: string;
+    region: string;
+    address: string;
+    infoText: string;
+    checkInTime: string;
+    checkOutTime: string;
+  }) {
+    setMutatingAssetId('accommodation-new');
+    try {
+      const response = await apiRequest<AssetMutationResponse>('/api/v1/host/accommodations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      setCreatingAccommodation(false);
+      await loadAccommodations(false);
+      await loadAccommodationDetail(response.assetId, false);
+      setCurrentPage('properties');
+      setBanner({ tone: 'success', text: `Property ${response.assetName} created.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  async function handleUpdateAccommodation(
+    accommodationId: number,
+    form: {
+      name: string;
+      region: string;
+      address: string;
+      infoText: string;
+      checkInTime: string;
+      checkOutTime: string;
+    }
+  ) {
+    setMutatingAssetId(`accommodation-${accommodationId}`);
+    try {
+      const response = await apiRequest<AssetMutationResponse>(`/api/v1/host/accommodations/${accommodationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      await loadAccommodations(false);
+      await loadAccommodationDetail(accommodationId, false);
+      setBanner({ tone: 'success', text: `Property ${response.assetName} updated.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  async function handleDeactivateAccommodation(accommodationId: number) {
+    if (!window.confirm('Deactivate this property? Active reservations must already be cleared.')) {
+      return;
+    }
+
+    setMutatingAssetId(`accommodation-${accommodationId}`);
+    try {
+      const response = await apiRequest<AssetMutationResponse>(`/api/v1/host/accommodations/${accommodationId}/deactivate`, {
+        method: 'POST'
+      });
+      await loadAccommodations(false);
+      setBanner({ tone: 'success', text: `Property ${response.assetName} deactivated.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  async function handleCreateRoomType(
+    accommodationId: number,
+    form: { name: string; baseCapacity: string; maxCapacity: string; basePrice: string }
+  ) {
+    setMutatingAssetId(`room-type-new-${accommodationId}`);
+    try {
+      const response = await apiRequest<AssetMutationResponse>(`/api/v1/host/accommodations/${accommodationId}/room-types`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          baseCapacity: Number(form.baseCapacity),
+          maxCapacity: Number(form.maxCapacity),
+          basePrice: Number(form.basePrice)
+        })
+      });
+      await loadAccommodationDetail(accommodationId, false);
+      await loadAccommodations(false);
+      setBanner({ tone: 'success', text: `Room type ${response.assetName} created.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  async function handleUpdateRoomType(
+    roomTypeId: number,
+    form: { name: string; baseCapacity: string; maxCapacity: string; basePrice: string }
+  ) {
+    setMutatingAssetId(`room-type-${roomTypeId}`);
+    try {
+      const response = await apiRequest<AssetMutationResponse>(`/api/v1/host/room-types/${roomTypeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          baseCapacity: Number(form.baseCapacity),
+          maxCapacity: Number(form.maxCapacity),
+          basePrice: Number(form.basePrice)
+        })
+      });
+      if (selectedAccommodationId !== null) {
+        await loadAccommodationDetail(selectedAccommodationId, false);
+      }
+      await loadAccommodations(false);
+      setBanner({ tone: 'success', text: `Room type ${response.assetName} updated.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  async function handleDeactivateRoomType(roomTypeId: number) {
+    if (!window.confirm('Deactivate this room type? Existing future reservations must already be resolved.')) {
+      return;
+    }
+
+    setMutatingAssetId(`room-type-${roomTypeId}`);
+    try {
+      const response = await apiRequest<AssetMutationResponse>(`/api/v1/host/room-types/${roomTypeId}/deactivate`, {
+        method: 'POST'
+      });
+      if (selectedAccommodationId !== null) {
+        await loadAccommodationDetail(selectedAccommodationId, false);
+      }
+      await loadAccommodations(false);
+      setBanner({ tone: 'success', text: `Room type ${response.assetName} deactivated.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  async function handleCreateRoom(
+    accommodationId: number,
+    form: { roomTypeId: string; roomCode: string; status: string; memo: string }
+  ) {
+    setMutatingAssetId(`room-new-${accommodationId}`);
+    try {
+      const response = await apiRequest<AssetMutationResponse>(`/api/v1/host/accommodations/${accommodationId}/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomTypeId: Number(form.roomTypeId),
+          roomCode: form.roomCode,
+          status: form.status,
+          memo: form.memo
+        })
+      });
+      await loadAccommodationDetail(accommodationId, false);
+      await loadAccommodations(false);
+      setBanner({ tone: 'success', text: `Room ${response.assetName} created.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  async function handleUpdateRoom(
+    roomId: number,
+    form: { roomCode: string; status: string; memo: string }
+  ) {
+    setMutatingAssetId(`room-${roomId}`);
+    try {
+      const response = await apiRequest<AssetMutationResponse>(`/api/v1/host/rooms/${roomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      if (selectedAccommodationId !== null) {
+        await loadAccommodationDetail(selectedAccommodationId, false);
+      }
+      await loadAccommodations(false);
+      await refreshHostCalendar();
+      setBanner({ tone: 'success', text: `Room ${response.assetName} updated.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  async function handleDeactivateRoom(roomId: number) {
+    if (!window.confirm('Deactivate this room? Future nightly assignments must already be cleared.')) {
+      return;
+    }
+
+    setMutatingAssetId(`room-${roomId}`);
+    try {
+      const response = await apiRequest<AssetMutationResponse>(`/api/v1/host/rooms/${roomId}/deactivate`, {
+        method: 'POST'
+      });
+      if (selectedAccommodationId !== null) {
+        await loadAccommodationDetail(selectedAccommodationId, false);
+      }
+      await loadAccommodations(false);
+      await refreshHostCalendar();
+      setBanner({ tone: 'success', text: `Room ${response.assetName} deactivated.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setMutatingAssetId(null);
+    }
+  }
+
+  function openPropertyCalendar(accommodationId: number) {
+    setCurrentPage('reservation-calendar');
+    void loadReservationCalendar(false, accommodationId, calendarStartDate, false);
+  }
+
+  function openPropertyPricing(accommodationId: number) {
+    setCurrentPage('pricing');
+    setPricingAccommodationId(String(accommodationId));
+    setPricingRoomTypeFilterId('ALL');
+    void loadPricePolicies(false, accommodationId, null);
+  }
+
+  function openPropertyBlocks(accommodationId: number) {
+    setCurrentPage('room-blocks');
+    setBlockAccommodationId(String(accommodationId));
+    setBlockRoomFilterId('ALL');
+    void loadRoomBlocks(false, accommodationId, null);
+  }
+
+  async function handleAccommodationBlockFilterChange(value: string) {
+    setBlockAccommodationId(value);
     setBlockRoomFilterId('ALL');
     try {
-      await loadRoomBlocks(false, Number(accommodationId), null);
-      setBanner({ tone: 'info', text: 'Accommodation block context updated.' });
+      await loadRoomBlocks(true, Number(value), null);
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     }
   }
 
-  async function handleAccommodationPricingFilterChange(accommodationId: string) {
-    setPricingAccommodationId(accommodationId);
+  async function handleAccommodationPricingFilterChange(value: string) {
+    setPricingAccommodationId(value);
     setPricingRoomTypeFilterId('ALL');
     try {
-      await loadPricePolicies(false, Number(accommodationId), null);
-      setBanner({ tone: 'info', text: 'Pricing accommodation context updated.' });
+      await loadPricePolicies(true, Number(value), null);
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     }
   }
 
-  async function handleRoomTypePricingFilterChange(roomTypeId: string) {
-    setPricingRoomTypeFilterId(roomTypeId);
-    const selectedAccommodation =
-      pricingAccommodationId === ''
-        ? pricePolicyManagement?.selectedAccommodationId ?? null
-        : Number(pricingAccommodationId);
-    if (selectedAccommodation === null) {
-      return;
-    }
+  async function handleRoomTypePricingFilterChange(value: string) {
+    setPricingRoomTypeFilterId(value);
     try {
-      await loadPricePolicies(false, selectedAccommodation, roomTypeId === 'ALL' ? null : Number(roomTypeId));
-      setBanner({ tone: 'info', text: 'Pricing room-type filter updated.' });
+      await loadPricePolicies(true, pricingAccommodationId ? Number(pricingAccommodationId) : null, value === 'ALL' ? null : Number(value));
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     }
   }
 
-  async function handleRoomBlockFilterChange(roomId: string) {
-    setBlockRoomFilterId(roomId);
-    const selectedAccommodation =
-      blockAccommodationId === '' ? roomBlockManagement?.selectedAccommodationId ?? null : Number(blockAccommodationId);
-    if (selectedAccommodation === null) {
-      return;
-    }
+  async function handleRoomBlockFilterChange(value: string) {
+    setBlockRoomFilterId(value);
     try {
-      await loadRoomBlocks(false, selectedAccommodation, roomId === 'ALL' ? null : Number(roomId));
-      setBanner({ tone: 'info', text: 'Room block filter updated.' });
+      await loadRoomBlocks(true, blockAccommodationId ? Number(blockAccommodationId) : null, value === 'ALL' ? null : Number(value));
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     }
   }
 
   async function handleCreateRoomBlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!newBlockRoomId || !newBlockStartDate || !newBlockEndDate) {
-      setBanner({ tone: 'error', text: 'Room, start date, and end date are required.' });
-      return;
-    }
     setCreatingRoomBlock(true);
+
     try {
-      const result = await apiRequest<RoomBlockMutationResponse>('/api/v1/room-blocks', {
+      const data = await apiRequest<RoomBlockMutationResponse>('/api/v1/room-blocks', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           roomId: Number(newBlockRoomId),
           startDate: newBlockStartDate,
@@ -1030,75 +1203,69 @@ function App() {
           reasonText: newBlockReasonText.trim() || null
         })
       });
-      await refreshRoomBlocksAndDetail();
+      setNewBlockStartDate('');
+      setNewBlockEndDate('');
       setNewBlockReasonText('');
-      setBanner({
-        tone: 'success',
-        text: `Room block ${result.blockId} created for room ${result.roomCode}.`
-      });
+      await refreshRoomBlocksAndDetail();
+      setBanner({ tone: 'success', text: `Room block ${data.blockId} created for ${data.roomCode}.` });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setCreatingRoomBlock(false);
     }
   }
 
   async function handleDeactivateRoomBlock(blockId: number) {
+    if (!window.confirm(`Deactivate room block ${blockId}?`)) {
+      return;
+    }
+
     setDeactivatingBlockId(blockId);
     try {
-      const result = await apiRequest<RoomBlockMutationResponse>(`/api/v1/room-blocks/${blockId}/deactivate`, {
+      const data = await apiRequest<RoomBlockMutationResponse>(`/api/v1/room-blocks/${blockId}/deactivate`, {
         method: 'POST'
       });
       await refreshRoomBlocksAndDetail();
-      setBanner({
-        tone: 'success',
-        text: `Room block ${result.blockId} is now ${result.status}.`
-      });
+      setBanner({ tone: 'success', text: `Room block ${data.blockId} deactivated.` });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setDeactivatingBlockId(null);
     }
   }
 
   function toggleNewPolicyDayBit(bit: number) {
-    setNewPolicyDayBits((current) =>
-      current.includes(bit) ? current.filter((value) => value !== bit) : [...current, bit].sort((a, b) => a - b)
-    );
+    setNewPolicyDayBits((current) => (current.includes(bit) ? current.filter((item) => item !== bit) : [...current, bit].sort((a, b) => a - b)));
   }
 
   async function handleCreatePricePolicy(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!newPolicyRoomTypeId || !newPolicyName.trim() || !newPolicyStartDate || !newPolicyEndDate || !newPolicyDeltaAmount.trim()) {
-      setBanner({ tone: 'error', text: 'Room type, policy name, date range, and delta amount are required.' });
-      return;
-    }
     setCreatingPricePolicy(true);
+
     try {
-      const result = await apiRequest<PricePolicyMutationResponse>('/api/v1/price-policies', {
+      const data = await apiRequest<PricePolicyMutationResponse>('/api/v1/price-policies', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           roomTypeId: Number(newPolicyRoomTypeId),
-          policyName: newPolicyName.trim(),
+          policyName: newPolicyName,
           startDate: newPolicyStartDate,
           endDate: newPolicyEndDate,
           deltaAmount: Number(newPolicyDeltaAmount),
           dayOfWeekMask: buildDayOfWeekMask(newPolicyDayBits)
         })
       });
-      await refreshPricePoliciesAndDetail();
       setNewPolicyName('');
+      setNewPolicyStartDate('');
+      setNewPolicyEndDate('');
       setNewPolicyDeltaAmount('');
       setNewPolicyDayBits([]);
-      setBanner({
-        tone: 'success',
-        text: `Price policy ${result.policyId} created for ${result.roomTypeName}.`
-      });
+      await refreshPricePoliciesAndDetail();
+      setBanner({ tone: 'success', text: `Price policy ${data.policyName} created.` });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setCreatingPricePolicy(false);
     }
@@ -1107,1144 +1274,575 @@ function App() {
   async function handleApproveHostRoleRequest(request: AdminHostRoleRequest) {
     setReviewingHostRoleRequestId(request.requestId);
     try {
-      const result = await apiRequest<AdminHostRoleRequestDecisionResponse>(
+      const reviewReason = adminReviewReason.trim();
+      const data = await apiRequest<AdminHostRoleRequestDecisionResponse>(
         `/api/v1/admin/host-role-requests/${request.requestId}/approve`,
         {
           method: 'POST',
-          body: JSON.stringify({ reviewReason: adminReviewReason.trim() || null })
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: reviewReason ? JSON.stringify({ reviewReason }) : undefined
         }
       );
-      await refreshAdminContext(request.requestId, request.userId);
-      setBanner({
-        tone: 'success',
-        text: `Host role request ${result.requestId} was approved.`
-      });
       setAdminReviewReason('');
+      await refreshAdminContext();
+      await loadHostRoleRequestDetail(request.requestId, false);
+      setBanner({ tone: 'success', text: `Host role request ${data.requestId} approved.` });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setReviewingHostRoleRequestId(null);
     }
   }
 
   async function handleRejectHostRoleRequest(request: AdminHostRoleRequest) {
+    const reviewReason = adminReviewReason.trim();
+    if (!reviewReason) {
+      setBanner({ tone: 'error', text: 'A review reason is required to reject a host role request.' });
+      return;
+    }
+
     setReviewingHostRoleRequestId(request.requestId);
     try {
-      const result = await apiRequest<AdminHostRoleRequestDecisionResponse>(
+      const data = await apiRequest<AdminHostRoleRequestDecisionResponse>(
         `/api/v1/admin/host-role-requests/${request.requestId}/reject`,
         {
           method: 'POST',
-          body: JSON.stringify({ reviewReason: adminReviewReason })
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ reviewReason })
         }
       );
-      await refreshAdminContext(request.requestId, request.userId);
-      setBanner({
-        tone: 'success',
-        text: `Host role request ${result.requestId} was rejected.`
-      });
       setAdminReviewReason('');
+      await refreshAdminContext();
+      await loadHostRoleRequestDetail(request.requestId, false);
+      setBanner({ tone: 'success', text: `Host role request ${data.requestId} rejected.` });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setReviewingHostRoleRequestId(null);
     }
   }
 
+  async function handleCreateAdminTermDraft(sourceTermId: number, version: string) {
+    const nextVersion = version.trim();
+    if (!nextVersion) {
+      setBanner({ tone: 'error', text: 'A new version is required to create a draft.' });
+      return;
+    }
+
+    setCreatingTermDraftId(sourceTermId);
+    try {
+      const data = await apiRequest<AdminTermMutationResponse>(`/api/v1/admin/terms/${sourceTermId}/drafts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ version: nextVersion })
+      });
+      await loadAdminTerms(false);
+      await loadAdminTermDetail(data.termId, false);
+      setBanner({ tone: 'success', text: `Draft v${data.version} created.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setCreatingTermDraftId(null);
+    }
+  }
+
+  async function handleUpdateAdminTerm(
+    termId: number,
+    form: { title: string; content: string; version: string; required: boolean; effectiveAt: string }
+  ) {
+    if (!form.effectiveAt) {
+      setBanner({ tone: 'error', text: 'An effective date and time is required.' });
+      return;
+    }
+
+    setSavingAdminTermId(termId);
+    try {
+      const data = await apiRequest<AdminTermMutationResponse>(`/api/v1/admin/terms/${termId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: form.title,
+          content: form.content,
+          version: form.version,
+          required: form.required,
+          effectiveAt: toServerDateTime(form.effectiveAt)
+        })
+      });
+      await loadAdminTerms(false);
+      await loadAdminTermDetail(termId, false);
+      setBanner({ tone: 'success', text: `Draft v${data.version} saved.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setSavingAdminTermId(null);
+    }
+  }
+
+  async function handlePublishAdminTerm(termId: number) {
+    setPublishingAdminTermId(termId);
+    try {
+      const data = await apiRequest<AdminTermMutationResponse>(`/api/v1/admin/terms/${termId}/publish`, {
+        method: 'POST'
+      });
+      await loadAdminTerms(false);
+      await loadAdminTermDetail(termId, false);
+      setBanner({ tone: 'success', text: `Term v${data.version} published for signup.` });
+    } catch (error) {
+      setBanner({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setPublishingAdminTermId(null);
+    }
+  }
+
   async function handleDeactivatePricePolicy(policyId: number) {
+    if (!window.confirm(`Deactivate price policy ${policyId}?`)) {
+      return;
+    }
+
     setDeactivatingPolicyId(policyId);
     try {
-      const result = await apiRequest<PricePolicyMutationResponse>(`/api/v1/price-policies/${policyId}/deactivate`, {
+      const data = await apiRequest<PricePolicyMutationResponse>(`/api/v1/price-policies/${policyId}/deactivate`, {
         method: 'POST'
       });
       await refreshPricePoliciesAndDetail();
-      setBanner({
-        tone: 'success',
-        text: `Price policy ${result.policyId} is now ${result.status}.`
-      });
+      setBanner({ tone: 'success', text: `Price policy ${data.policyName} deactivated.` });
     } catch (error) {
-      const apiError = error as Error;
-      setBanner({ tone: 'error', text: apiError.message });
+      setBanner({ tone: 'error', text: (error as Error).message });
     } finally {
       setDeactivatingPolicyId(null);
     }
   }
 
-  const selectedReservationInList =
-    selectedReservationId === null
-      ? null
-      : reservations.find((reservation) => reservation.reservationId === selectedReservationId) ?? null;
-  const selectedAdminUserInList =
-    selectedAdminUserId === null
-      ? null
-      : adminUsers.find((adminUser) => adminUser.userId === selectedAdminUserId) ?? null;
-  const selectedHostRoleRequestInList =
-    selectedHostRoleRequestId === null
-      ? null
-      : adminHostRoleRequests.find((request) => request.requestId === selectedHostRoleRequestId) ?? null;
-  const roomBlockReasonChoices = blockReasonOptions(user?.role);
-  const isAdmin = user?.role === 'ADMIN';
+  function renderCurrentPage() {
+    if (!user) {
+      return null;
+    }
+
+    if (!isAdmin) {
+      switch (currentPage as HostPageKey) {
+        case 'reservation-calendar':
+          return (
+            <HostReservationCalendarPage
+              reservationCalendar={reservationCalendar}
+              loadingReservationCalendar={loadingReservationCalendar}
+              selectedReservationId={selectedReservationId}
+              selectedReservationSummary={selectedReservationSummary}
+              reservationDetail={reservationDetail}
+              loadingDetail={loadingDetail}
+              decisioningReservationId={decisioningReservationId}
+              rejectReasons={rejectReasons}
+              reassigningNightId={reassigningNightId}
+              onRefresh={() => void loadReservationCalendar(true)}
+              onAccommodationChange={(value) => void handleCalendarAccommodationChange(value)}
+              onStartDateChange={(value) => void handleCalendarStartDateChange(value)}
+              onSelectReservation={(reservationId) => void handleCalendarReservationSelect(reservationId)}
+              onOpenFallbackDetail={() => {
+                if (selectedReservationId !== null) {
+                  void loadReservationDetail(selectedReservationId, true, true);
+                }
+              }}
+              onRejectReasonChange={(reservationId, value) =>
+                setRejectReasons((current) => ({ ...current, [reservationId]: value }))
+              }
+              onApprove={(reservation) => void handleApprove(reservation)}
+              onReject={(reservation) => void handleReject(reservation)}
+              onCancel={(reservation, reasonText) => void handleCancel(reservation, reasonText)}
+              onReassignNight={(assignmentCell, targetRoomId) => void handleCalendarReassignNight(assignmentCell, targetRoomId)}
+              onSwapNights={(sourceCell, targetCell) => void handleCalendarSwapNights(sourceCell, targetCell)}
+            />
+          );
+        case 'properties':
+          return (
+            <HostPropertiesPage
+              accommodations={accommodations}
+              selectedAccommodationId={selectedAccommodationId}
+              accommodationDetail={accommodationDetail}
+              creatingAccommodation={creatingAccommodation}
+              loadingAccommodations={loadingAccommodations}
+              loadingAccommodationDetail={loadingAccommodationDetail}
+              mutatingAssetId={mutatingAssetId}
+              onRefresh={() => void loadAccommodations(true)}
+              onStartCreateAccommodation={handleStartCreateAccommodation}
+              onSelectAccommodation={(accommodationId) => void handleSelectAccommodation(accommodationId)}
+              onCreateAccommodation={(form) => void handleCreateAccommodation(form)}
+              onUpdateAccommodation={(accommodationId, form) => void handleUpdateAccommodation(accommodationId, form)}
+              onDeactivateAccommodation={(accommodationId) => void handleDeactivateAccommodation(accommodationId)}
+              onCreateRoomType={(accommodationId, form) => void handleCreateRoomType(accommodationId, form)}
+              onUpdateRoomType={(roomTypeId, form) => void handleUpdateRoomType(roomTypeId, form)}
+              onDeactivateRoomType={(roomTypeId) => void handleDeactivateRoomType(roomTypeId)}
+              onCreateRoom={(accommodationId, form) => void handleCreateRoom(accommodationId, form)}
+              onUpdateRoom={(roomId, form) => void handleUpdateRoom(roomId, form)}
+              onDeactivateRoom={(roomId) => void handleDeactivateRoom(roomId)}
+              onOpenCalendar={openPropertyCalendar}
+              onOpenPricing={openPropertyPricing}
+              onOpenBlocks={openPropertyBlocks}
+            />
+          );
+        case 'dashboard':
+          return (
+            <HostDashboardPage
+              reservations={reservations}
+              pendingCount={reservations.filter((reservation) => reservation.status === 'PENDING').length}
+              blockCount={roomBlockManagement?.blocks.filter((block) => block.status === 'ACTIVE').length ?? 0}
+              pricingCount={pricePolicyManagement?.policies.filter((policy) => policy.status === 'ACTIVE').length ?? 0}
+              onNavigate={setCurrentPage}
+              onOpenReservation={(reservationId) => {
+                setCurrentPage('reservation-calendar');
+                void handleCalendarReservationSelect(reservationId);
+              }}
+            />
+          );
+        case 'reservation-detail':
+          return (
+            <ReservationDetailPage
+              selectedReservationId={selectedReservationId}
+              reservationDetail={reservationDetail}
+              loadingDetail={loadingDetail}
+              selectedReservationSummary={selectedReservationSummary}
+              showCalendarAction
+              rejectReasons={rejectReasons}
+              decisioningReservationId={decisioningReservationId}
+              reassignmentSelections={reassignmentSelections}
+              reassigningNightId={reassigningNightId}
+              onRefresh={() => {
+                if (selectedReservationId !== null) {
+                  void loadReservationDetail(selectedReservationId, true);
+                }
+              }}
+              onOpenCalendar={(reservation) => void handleOpenReservationInCalendar(reservation)}
+              onRejectReasonChange={(reservationId, value) =>
+                setRejectReasons((current) => ({ ...current, [reservationId]: value }))
+              }
+              onApprove={(reservation) => void handleApprove(reservation)}
+              onReject={(reservation) => void handleReject(reservation)}
+              onCancel={(reservation, reasonText) => void handleCancel(reservation, reasonText)}
+              onReassignmentSelectionChange={(reservationNightId, value) =>
+                setReassignmentSelections((current) => ({ ...current, [reservationNightId]: value }))
+              }
+              onReassignNight={(night) => void handleReassignNight(night)}
+            />
+          );
+        case 'room-blocks':
+          return (
+            <RoomBlocksPage
+              roomBlockManagement={roomBlockManagement}
+              loadingRoomBlocks={loadingRoomBlocks}
+              creatingRoomBlock={creatingRoomBlock}
+              deactivatingBlockId={deactivatingBlockId}
+              blockAccommodationId={blockAccommodationId}
+              blockRoomFilterId={blockRoomFilterId}
+              newBlockRoomId={newBlockRoomId}
+              newBlockStartDate={newBlockStartDate}
+              newBlockEndDate={newBlockEndDate}
+              newBlockReasonType={newBlockReasonType}
+              newBlockReasonText={newBlockReasonText}
+              roomBlockReasonChoices={roomBlockReasonChoices}
+              onRefresh={() => void loadRoomBlocks(true)}
+              onAccommodationChange={(value) => void handleAccommodationBlockFilterChange(value)}
+              onRoomFilterChange={(value) => void handleRoomBlockFilterChange(value)}
+              onNewBlockRoomIdChange={setNewBlockRoomId}
+              onNewBlockStartDateChange={setNewBlockStartDate}
+              onNewBlockEndDateChange={setNewBlockEndDate}
+              onNewBlockReasonTypeChange={setNewBlockReasonType}
+              onNewBlockReasonTextChange={setNewBlockReasonText}
+              onSubmit={(event) => void handleCreateRoomBlock(event)}
+              onDeactivate={(blockId) => void handleDeactivateRoomBlock(blockId)}
+            />
+          );
+        case 'pricing':
+          return (
+            <PricingPage
+              pricePolicyManagement={pricePolicyManagement}
+              loadingPricePolicies={loadingPricePolicies}
+              creatingPricePolicy={creatingPricePolicy}
+              deactivatingPolicyId={deactivatingPolicyId}
+              pricingAccommodationId={pricingAccommodationId}
+              pricingRoomTypeFilterId={pricingRoomTypeFilterId}
+              newPolicyRoomTypeId={newPolicyRoomTypeId}
+              newPolicyName={newPolicyName}
+              newPolicyStartDate={newPolicyStartDate}
+              newPolicyEndDate={newPolicyEndDate}
+              newPolicyDeltaAmount={newPolicyDeltaAmount}
+              newPolicyDayBits={newPolicyDayBits}
+              onRefresh={() => void loadPricePolicies(true)}
+              onAccommodationChange={(value) => void handleAccommodationPricingFilterChange(value)}
+              onRoomTypeFilterChange={(value) => void handleRoomTypePricingFilterChange(value)}
+              onNewPolicyRoomTypeIdChange={setNewPolicyRoomTypeId}
+              onNewPolicyNameChange={setNewPolicyName}
+              onNewPolicyStartDateChange={setNewPolicyStartDate}
+              onNewPolicyEndDateChange={setNewPolicyEndDate}
+              onNewPolicyDeltaAmountChange={setNewPolicyDeltaAmount}
+              onToggleDayBit={toggleNewPolicyDayBit}
+              onSubmit={(event) => void handleCreatePricePolicy(event)}
+              onDeactivate={(policyId) => void handleDeactivatePricePolicy(policyId)}
+            />
+          );
+        case 'reservations':
+        default:
+          return (
+            <ReservationsPage
+              reservations={reservations}
+              statusFilter={statusFilter}
+              selectedReservationId={selectedReservationId}
+              showCalendarAction
+              refreshing={refreshing}
+              decisioningReservationId={decisioningReservationId}
+              rejectReasons={rejectReasons}
+              onFilterChange={(filter) => void handleFilterChange(filter)}
+              onRefresh={() => void loadReservations(true)}
+              onOpenDetail={(reservationId) => void handleOpenDetail(reservationId)}
+              onOpenCalendar={(reservation) => void handleOpenReservationInCalendar(reservation)}
+              onApprove={(reservation) => void handleApprove(reservation)}
+              onReject={(reservation) => void handleReject(reservation)}
+              onRejectReasonChange={(reservationId, value) =>
+                setRejectReasons((current) => ({ ...current, [reservationId]: value }))
+              }
+            />
+          );
+      }
+    }
+
+    switch (currentPage as AdminPageKey) {
+      case 'dashboard':
+        return (
+          <AdminDashboardPage
+            reservations={reservations}
+            adminUsers={adminUsers}
+            hostRoleRequests={adminHostRoleRequests}
+            termCount={adminTerms.length}
+            blockCount={roomBlockManagement?.blocks.filter((block) => block.status === 'ACTIVE').length ?? 0}
+            pricingCount={pricePolicyManagement?.policies.filter((policy) => policy.status === 'ACTIVE').length ?? 0}
+            onNavigate={setCurrentPage}
+          />
+        );
+      case 'users':
+        return (
+          <AdminUsersPage
+            adminUsers={adminUsers}
+            selectedAdminUserId={selectedAdminUserId}
+            adminUserDetail={adminUserDetail}
+            loadingAdminUsers={loadingAdminUsers}
+            loadingAdminUserDetail={loadingAdminUserDetail}
+            onRefreshUsers={() => void loadAdminUsers(true)}
+            onOpenUser={(userId) => void loadAdminUserDetail(userId, true)}
+            onOpenRoleRequestsForUser={(adminUser) => {
+              const nextFilter = adminUser.latestHostRoleRequestStatus ?? 'ALL';
+              setCurrentPage('role-requests');
+              setHostRoleRequestFilter(nextFilter);
+              void loadHostRoleRequests(false, nextFilter);
+            }}
+          />
+        );
+      case 'role-requests':
+        return (
+          <AdminRoleRequestsPage
+            hostRoleRequestFilter={hostRoleRequestFilter}
+            adminHostRoleRequests={adminHostRoleRequests}
+            selectedHostRoleRequestId={selectedHostRoleRequestId}
+            hostRoleRequestDetail={hostRoleRequestDetail}
+            loadingHostRoleRequests={loadingHostRoleRequests}
+            loadingHostRoleRequestDetail={loadingHostRoleRequestDetail}
+            reviewingHostRoleRequestId={reviewingHostRoleRequestId}
+            adminReviewReason={adminReviewReason}
+            onRefreshRequests={() => void loadHostRoleRequests(true)}
+            onFilterChange={(filter) => void handleHostRoleRequestFilterChange(filter)}
+            onOpenRequest={(requestId) => void loadHostRoleRequestDetail(requestId, true)}
+            onReviewReasonChange={setAdminReviewReason}
+            onApprove={(request) => void handleApproveHostRoleRequest(request)}
+            onReject={(request) => void handleRejectHostRoleRequest(request)}
+          />
+        );
+      case 'terms':
+        return (
+          <AdminTermsPage
+            adminTerms={adminTerms}
+            selectedAdminTermId={selectedAdminTermId}
+            adminTermDetail={adminTermDetail}
+            loadingAdminTerms={loadingAdminTerms}
+            loadingAdminTermDetail={loadingAdminTermDetail}
+            creatingTermDraftId={creatingTermDraftId}
+            savingAdminTermId={savingAdminTermId}
+            publishingAdminTermId={publishingAdminTermId}
+            onRefreshTerms={() => void loadAdminTerms(true)}
+            onOpenTerm={(termId) => void loadAdminTermDetail(termId, true)}
+            onCreateDraft={(termId, version) => void handleCreateAdminTermDraft(termId, version)}
+            onUpdateDraft={(termId, form) => void handleUpdateAdminTerm(termId, form)}
+            onPublish={(termId) => void handlePublishAdminTerm(termId)}
+          />
+        );
+      case 'reservation-detail':
+        return (
+          <ReservationDetailPage
+            selectedReservationId={selectedReservationId}
+            reservationDetail={reservationDetail}
+            loadingDetail={loadingDetail}
+            selectedReservationSummary={selectedReservationSummary}
+            showCalendarAction={false}
+            rejectReasons={rejectReasons}
+            decisioningReservationId={decisioningReservationId}
+            reassignmentSelections={reassignmentSelections}
+            reassigningNightId={reassigningNightId}
+            onRefresh={() => {
+              if (selectedReservationId !== null) {
+                void loadReservationDetail(selectedReservationId, true);
+              }
+            }}
+            onOpenCalendar={() => undefined}
+            onRejectReasonChange={(reservationId, value) =>
+              setRejectReasons((current) => ({ ...current, [reservationId]: value }))
+            }
+            onApprove={(reservation) => void handleApprove(reservation)}
+            onReject={(reservation) => void handleReject(reservation)}
+            onCancel={(reservation, reasonText) => void handleCancel(reservation, reasonText)}
+            onReassignmentSelectionChange={(reservationNightId, value) =>
+              setReassignmentSelections((current) => ({ ...current, [reservationNightId]: value }))
+            }
+            onReassignNight={(night) => void handleReassignNight(night)}
+          />
+        );
+      case 'room-blocks':
+        return (
+          <RoomBlocksPage
+            roomBlockManagement={roomBlockManagement}
+            loadingRoomBlocks={loadingRoomBlocks}
+            creatingRoomBlock={creatingRoomBlock}
+            deactivatingBlockId={deactivatingBlockId}
+            blockAccommodationId={blockAccommodationId}
+            blockRoomFilterId={blockRoomFilterId}
+            newBlockRoomId={newBlockRoomId}
+            newBlockStartDate={newBlockStartDate}
+            newBlockEndDate={newBlockEndDate}
+            newBlockReasonType={newBlockReasonType}
+            newBlockReasonText={newBlockReasonText}
+            roomBlockReasonChoices={roomBlockReasonChoices}
+            onRefresh={() => void loadRoomBlocks(true)}
+            onAccommodationChange={(value) => void handleAccommodationBlockFilterChange(value)}
+            onRoomFilterChange={(value) => void handleRoomBlockFilterChange(value)}
+            onNewBlockRoomIdChange={setNewBlockRoomId}
+            onNewBlockStartDateChange={setNewBlockStartDate}
+            onNewBlockEndDateChange={setNewBlockEndDate}
+            onNewBlockReasonTypeChange={setNewBlockReasonType}
+            onNewBlockReasonTextChange={setNewBlockReasonText}
+            onSubmit={(event) => void handleCreateRoomBlock(event)}
+            onDeactivate={(blockId) => void handleDeactivateRoomBlock(blockId)}
+          />
+        );
+      case 'pricing':
+        return (
+          <PricingPage
+            pricePolicyManagement={pricePolicyManagement}
+            loadingPricePolicies={loadingPricePolicies}
+            creatingPricePolicy={creatingPricePolicy}
+            deactivatingPolicyId={deactivatingPolicyId}
+            pricingAccommodationId={pricingAccommodationId}
+            pricingRoomTypeFilterId={pricingRoomTypeFilterId}
+            newPolicyRoomTypeId={newPolicyRoomTypeId}
+            newPolicyName={newPolicyName}
+            newPolicyStartDate={newPolicyStartDate}
+            newPolicyEndDate={newPolicyEndDate}
+            newPolicyDeltaAmount={newPolicyDeltaAmount}
+            newPolicyDayBits={newPolicyDayBits}
+            onRefresh={() => void loadPricePolicies(true)}
+            onAccommodationChange={(value) => void handleAccommodationPricingFilterChange(value)}
+            onRoomTypeFilterChange={(value) => void handleRoomTypePricingFilterChange(value)}
+            onNewPolicyRoomTypeIdChange={setNewPolicyRoomTypeId}
+            onNewPolicyNameChange={setNewPolicyName}
+            onNewPolicyStartDateChange={setNewPolicyStartDate}
+            onNewPolicyEndDateChange={setNewPolicyEndDate}
+            onNewPolicyDeltaAmountChange={setNewPolicyDeltaAmount}
+            onToggleDayBit={toggleNewPolicyDayBit}
+            onSubmit={(event) => void handleCreatePricePolicy(event)}
+            onDeactivate={(policyId) => void handleDeactivatePricePolicy(policyId)}
+          />
+        );
+      case 'reservations':
+      default:
+        return (
+          <ReservationsPage
+            reservations={reservations}
+            statusFilter={statusFilter}
+            selectedReservationId={selectedReservationId}
+            showCalendarAction={false}
+            refreshing={refreshing}
+            decisioningReservationId={decisioningReservationId}
+            rejectReasons={rejectReasons}
+            onFilterChange={(filter) => void handleFilterChange(filter)}
+            onRefresh={() => void loadReservations(true)}
+            onOpenDetail={(reservationId) => void handleOpenDetail(reservationId)}
+            onOpenCalendar={() => undefined}
+            onApprove={(reservation) => void handleApprove(reservation)}
+            onReject={(reservation) => void handleReject(reservation)}
+            onRejectReasonChange={(reservationId, value) =>
+              setRejectReasons((current) => ({ ...current, [reservationId]: value }))
+            }
+          />
+        );
+    }
+  }
+
+  if (initializing) {
+    return (
+      <div className="app-shell">
+        {banner ? <div className={`banner banner-${banner.tone}`}>{banner.text}</div> : null}
+        <section className="panel narrow">
+          <h2>Preparing operations</h2>
+          <p className="muted">Restoring your sign-in session.</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="app-shell">
+        {banner ? <div className={`banner banner-${banner.tone}`}>{banner.text}</div> : null}
+        <LoginPage
+          loginId={loginId}
+          password={password}
+          loggingIn={loggingIn}
+          onLoginIdChange={setLoginId}
+          onPasswordChange={setPassword}
+          onSubmit={(event) => void handleLogin(event)}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="app-shell">
-      <header className="hero">
-        <div>
-          <p className="eyebrow">ops-web / M5 pricing + block management / M6 operations foundation</p>
-          <h1>Reservation operations, room-level blocks, and additive pricing</h1>
-          <p className="hero-copy">
-            Review reservations across statuses, inspect nightly assignments, approve or reject
-            pending requests, reassign today-or-future nights, and manage room-level blocks and
-            room-type price policies that feed the same guest preview and ops detail rules.
-          </p>
-        </div>
-        <div className="hero-meta">
-          <span>HOST ownership enforced</span>
-          <span>ADMIN has broader ops access</span>
-          <span>Room-level ACTIVE blocks drive exclusion</span>
-          <span>Active pricing deltas stack additively</span>
-        </div>
-      </header>
-
-      {banner ? <div className={`banner banner-${banner.tone}`}>{banner.text}</div> : null}
-
-      {initializing ? (
-        <section className="panel">
-          <h2>Checking session</h2>
-          <p>Looking for an existing ops session.</p>
-        </section>
-      ) : null}
-
-      {!initializing && !user ? (
-        <section className="panel narrow">
-          <h2>Ops login</h2>
-          <p className="muted">Seed account: host.demo / hostpass123! or admin.demo / adminpass123!</p>
-          <form className="stack" onSubmit={handleLogin}>
-            <label>
-              Login ID
-              <input value={loginId} onChange={(event) => setLoginId(event.target.value)} />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </label>
-            <button type="submit" disabled={loggingIn}>
-              {loggingIn ? 'Signing in...' : 'Sign in'}
-            </button>
-          </form>
-        </section>
-      ) : null}
-
-      {user ? (
-        <main className="stack-layout">
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Current session</h2>
-                <p className="muted">
-                  Ops runtime now supports host-scoped access, broader admin operations access, and
-                  practical room-level block management.
-                </p>
-              </div>
-              <button type="button" className="secondary-button" onClick={handleLogout}>
-                Sign out
-              </button>
-            </div>
-            <dl className="definition-list">
-              <div><dt>User ID</dt><dd>{user.userId}</dd></div>
-              <div><dt>Login ID</dt><dd>{user.loginId}</dd></div>
-                <div><dt>Name</dt><dd>{user.name}</dd></div>
-                <div><dt>Role</dt><dd>{user.role}</dd></div>
-              </dl>
-            </section>
-
-            {isAdmin ? (
-              <section className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>Admin user management</h2>
-                    <p className="muted">
-                      Minimal M7 governance panel for user visibility and host-role-request review.
-                    </p>
-                  </div>
-                  <div className="action-group">
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => void loadAdminUsers(true)}
-                      disabled={loadingAdminUsers}
-                    >
-                      {loadingAdminUsers ? 'Refreshing...' : 'Refresh users'}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => void loadHostRoleRequests(true, hostRoleRequestFilter)}
-                      disabled={loadingHostRoleRequests}
-                    >
-                      {loadingHostRoleRequests ? 'Refreshing...' : 'Refresh requests'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="admin-grid">
-                  <section className="detail-card">
-                    <h4>Users</h4>
-                    {adminUsers.length === 0 ? (
-                      <p className="empty-state">No users found.</p>
-                    ) : (
-                      <div className="admin-list">
-                        {adminUsers.map((adminUser) => (
-                          <button
-                            key={adminUser.userId}
-                            type="button"
-                            className={`result-card ${
-                              adminUser.userId === selectedAdminUserId ? 'result-card-active' : ''
-                            }`}
-                            onClick={() => void loadAdminUserDetail(adminUser.userId, true)}
-                          >
-                            <div className="result-card-header">
-                              <div>
-                                <strong>{adminUser.loginId}</strong>
-                                <p>{adminUser.name}</p>
-                              </div>
-                              <span className={`status-pill status-${adminUser.role.toLowerCase()}`}>
-                                {adminUser.role}
-                              </span>
-                            </div>
-                            <div className="result-metrics">
-                              <span>Status: {adminUser.status}</span>
-                              <span>Failed logins: {adminUser.failedLoginCount}</span>
-                              <span>
-                                Latest request:{' '}
-                                {adminUser.latestHostRoleRequestStatus ?? 'None'}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-
-                  <section className="detail-card">
-                    <h4>User detail</h4>
-                    {!adminUserDetail ? (
-                      <p className="empty-state">Choose one user to inspect detail.</p>
-                    ) : (
-                      <dl className="definition-list admin-definition-list">
-                        <div><dt>Login ID</dt><dd>{adminUserDetail.loginId}</dd></div>
-                        <div><dt>Name</dt><dd>{adminUserDetail.name}</dd></div>
-                        <div><dt>Role</dt><dd>{adminUserDetail.role}</dd></div>
-                        <div><dt>Status</dt><dd>{adminUserDetail.status}</dd></div>
-                        <div><dt>Email</dt><dd>{adminUserDetail.email ?? 'Not set'}</dd></div>
-                        <div><dt>Phone</dt><dd>{adminUserDetail.phone ?? 'Not set'}</dd></div>
-                        <div><dt>Created</dt><dd>{formatTimestamp(adminUserDetail.createdAt)}</dd></div>
-                        <div><dt>Updated</dt><dd>{formatTimestamp(adminUserDetail.updatedAt)}</dd></div>
-                        <div><dt>Last login</dt><dd>{formatTimestamp(adminUserDetail.lastLoginAt)}</dd></div>
-                        <div><dt>Failed count</dt><dd>{adminUserDetail.failedLoginCount}</dd></div>
-                        <div><dt>Last failed</dt><dd>{formatTimestamp(adminUserDetail.lastFailedAt)}</dd></div>
-                        <div><dt>Locked until</dt><dd>{formatTimestamp(adminUserDetail.lockedUntil)}</dd></div>
-                        <div>
-                          <dt>Password changed</dt>
-                          <dd>{formatTimestamp(adminUserDetail.passwordChangedAt)}</dd>
-                        </div>
-                      </dl>
-                    )}
-                  </section>
-
-                  <section className="detail-card detail-card-wide">
-                    <div className="panel-header">
-                      <div>
-                        <h4>Host role requests</h4>
-                        <p className="muted">Approve or reject guest-to-host role requests.</p>
-                      </div>
-                    </div>
-
-                    <div className="filter-row">
-                      {hostRoleRequestStatusFilters.map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          className={filter === hostRoleRequestFilter ? 'filter-chip filter-chip-active' : 'filter-chip'}
-                          onClick={() => void handleHostRoleRequestFilterChange(filter)}
-                        >
-                          {formatHostRoleRequestStatusFilter(filter)}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="admin-grid admin-grid-wide">
-                      <section className="detail-card">
-                        {adminHostRoleRequests.length === 0 ? (
-                          <p className="empty-state">No host role requests match the current filter.</p>
-                        ) : (
-                          <div className="admin-list">
-                            {adminHostRoleRequests.map((request) => (
-                              <button
-                                key={request.requestId}
-                                type="button"
-                                className={`result-card ${
-                                  request.requestId === selectedHostRoleRequestId ? 'result-card-active' : ''
-                                }`}
-                                onClick={() => void loadHostRoleRequestDetail(request.requestId, true)}
-                              >
-                                <div className="result-card-header">
-                                  <div>
-                                    <strong>{request.userLoginId}</strong>
-                                    <p>{request.userName}</p>
-                                  </div>
-                                  <span className={`status-pill status-${request.status.toLowerCase()}`}>
-                                    {request.status}
-                                  </span>
-                                </div>
-                                <div className="result-metrics">
-                                  <span>User role: {request.userRole}</span>
-                                  <span>User status: {request.userStatus}</span>
-                                  <span>Requested: {formatTimestamp(request.createdAt)}</span>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </section>
-
-                      <section className="detail-card">
-                        {!hostRoleRequestDetail ? (
-                          <p className="empty-state">Choose one request to inspect or review it.</p>
-                        ) : (
-                          <div className="detail-stack">
-                            <div>
-                              <h4>{hostRoleRequestDetail.userLoginId}</h4>
-                              <p className="detail-line">{hostRoleRequestDetail.userName}</p>
-                              <p className="detail-line">{hostRoleRequestDetail.requestReason}</p>
-                              <p className="detail-line">
-                                Status {hostRoleRequestDetail.status} / Requested {formatTimestamp(hostRoleRequestDetail.createdAt)}
-                              </p>
-                              {hostRoleRequestDetail.reviewedAt ? (
-                                <p className="detail-line">
-                                  Reviewed {formatTimestamp(hostRoleRequestDetail.reviewedAt)}
-                                </p>
-                              ) : null}
-                              {hostRoleRequestDetail.reviewedByLoginId ? (
-                                <p className="detail-line">
-                                  Reviewer {hostRoleRequestDetail.reviewedByName} ({hostRoleRequestDetail.reviewedByLoginId})
-                                </p>
-                              ) : null}
-                              {hostRoleRequestDetail.reviewReason ? (
-                                <p className="detail-line history-reason">{hostRoleRequestDetail.reviewReason}</p>
-                              ) : null}
-                            </div>
-
-                            <label>
-                              Review reason
-                              <textarea
-                                rows={4}
-                                value={adminReviewReason}
-                                placeholder="Optional on approve, required on reject."
-                                onChange={(event) => setAdminReviewReason(event.target.value)}
-                              />
-                            </label>
-
-                            <div className="action-group">
-                              <button
-                                type="button"
-                                disabled={
-                                  hostRoleRequestDetail.status !== 'PENDING' ||
-                                  reviewingHostRoleRequestId === hostRoleRequestDetail.requestId
-                                }
-                                onClick={() => void handleApproveHostRoleRequest(hostRoleRequestDetail)}
-                              >
-                                {reviewingHostRoleRequestId === hostRoleRequestDetail.requestId ? 'Working...' : 'Approve host role'}
-                              </button>
-                              <button
-                                type="button"
-                                className="danger-button"
-                                disabled={
-                                  hostRoleRequestDetail.status !== 'PENDING' ||
-                                  reviewingHostRoleRequestId === hostRoleRequestDetail.requestId
-                                }
-                                onClick={() => void handleRejectHostRoleRequest(hostRoleRequestDetail)}
-                              >
-                                {reviewingHostRoleRequestId === hostRoleRequestDetail.requestId ? 'Working...' : 'Reject request'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </section>
-                    </div>
-                  </section>
-                </div>
-              </section>
-            ) : null}
-
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Reservation list</h2>
-                <p className="muted">
-                  Pending and confirmed reservations remain inventory-consuming. Reassignment is allowed only for
-                  today and future nights.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => void loadReservations(true, statusFilter)}
-              >
-                {refreshing ? 'Refreshing...' : 'Refresh list'}
-              </button>
-            </div>
-
-            <div className="filter-row">
-              {statusFilters.map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  className={filter === statusFilter ? 'filter-chip filter-chip-active' : 'filter-chip'}
-                  onClick={() => void handleFilterChange(filter)}
-                >
-                  {formatStatusFilter(filter)}
-                </button>
-              ))}
-            </div>
-
-            {reservations.length === 0 ? (
-              <p className="empty-state">No reservations match the current filter.</p>
-            ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Reservation</th>
-                      <th>Guest</th>
-                      <th>Accommodation</th>
-                      <th>Room type</th>
-                      <th>Guests</th>
-                      <th>Stay</th>
-                      <th>Signals</th>
-                      <th>Timestamps</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reservations.map((reservation) => {
-                      const isWorking = decisioningReservationId === reservation.reservationId;
-                      const isSelected = reservation.reservationId === selectedReservationId;
-                      return (
-                        <tr key={reservation.reservationId} className={isSelected ? 'table-row-selected' : undefined}>
-                          <td>
-                            <strong>{reservation.reservationNo}</strong>
-                            <div className="row-subtext">ID {reservation.reservationId}</div>
-                            <span className={`status-pill status-${reservation.status.toLowerCase()}`}>
-                              {reservation.status}
-                            </span>
-                          </td>
-                          <td>
-                            {reservation.guestName}
-                            <div className="row-subtext">{reservation.guestLoginId}</div>
-                          </td>
-                          <td>{reservation.accommodationName}</td>
-                          <td>{reservation.roomTypeName}</td>
-                          <td>{reservation.guestCount}</td>
-                          <td>{reservation.checkInDate} to {reservation.checkOutDate}</td>
-                          <td>
-                            <div className="signal-list">
-                              <span>{reservation.reassignmentPossible ? 'Reassignable' : 'Locked'}</span>
-                              <span>{reservation.hasRelevantBlocks ? 'Block overlap' : 'No block overlap'}</span>
-                              <span>{reservation.hasRelevantPricing ? 'Pricing overlap' : 'No pricing overlap'}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="row-subtext">Requested {formatTimestamp(reservation.requestedAt)}</div>
-                            {reservation.confirmedAt ? (
-                              <div className="row-subtext">Confirmed {formatTimestamp(reservation.confirmedAt)}</div>
-                            ) : null}
-                            {reservation.cancelledAt ? (
-                              <div className="row-subtext">Cancelled {formatTimestamp(reservation.cancelledAt)}</div>
-                            ) : null}
-                          </td>
-                          <td>
-                            <div className="action-stack">
-                              <button
-                                type="button"
-                                className="secondary-button"
-                                onClick={() => void handleOpenDetail(reservation.reservationId, true)}
-                              >
-                                Open detail
-                              </button>
-                              {reservation.status === 'PENDING' ? (
-                                <>
-                                  <input
-                                    value={rejectReasons[reservation.reservationId] ?? ''}
-                                    placeholder="Optional reject reason"
-                                    onChange={(event) =>
-                                      setRejectReasons((current) => ({
-                                        ...current,
-                                        [reservation.reservationId]: event.target.value
-                                      }))
-                                    }
-                                  />
-                                  <div className="action-group">
-                                    <button type="button" disabled={isWorking} onClick={() => void handleApprove(reservation)}>
-                                      {isWorking ? 'Working...' : 'Approve'}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="danger-button"
-                                      disabled={isWorking}
-                                      onClick={() => void handleReject(reservation)}
-                                    >
-                                      {isWorking ? 'Working...' : 'Reject'}
-                                    </button>
-                                  </div>
-                                </>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>Room block management</h2>
-                <p className="muted">
-                  Create and deactivate room-level blocks. Active blocks are read by guest availability and by
-                  reassignment validation without any separate sync step.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() =>
-                  void loadRoomBlocks(
-                    true,
-                    blockAccommodationId === ''
-                      ? roomBlockManagement?.selectedAccommodationId ?? null
-                      : Number(blockAccommodationId),
-                    blockRoomFilterId === 'ALL' ? null : Number(blockRoomFilterId)
-                  )
-                }
-              >
-                {loadingRoomBlocks ? 'Refreshing...' : 'Refresh blocks'}
-              </button>
-            </div>
-
-            {!roomBlockManagement || roomBlockManagement.accommodations.length === 0 ? (
-              <p className="empty-state">No accessible accommodations are available for room-block management.</p>
-            ) : (
-              <div className="detail-stack">
-                <div className="field-grid">
-                  <label>
-                    Accommodation
-                    <select
-                      value={blockAccommodationId}
-                      onChange={(event) => void handleAccommodationBlockFilterChange(event.target.value)}
-                    >
-                      {roomBlockManagement.accommodations.map((accommodation) => (
-                        <option key={accommodation.accommodationId} value={accommodation.accommodationId}>
-                          {accommodation.accommodationName} / {accommodation.region}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label>
-                    Room filter
-                    <select
-                      value={blockRoomFilterId}
-                      onChange={(event) => void handleRoomBlockFilterChange(event.target.value)}
-                    >
-                      <option value="ALL">All rooms</option>
-                      {roomBlockManagement.rooms.map((room) => (
-                        <option key={room.roomId} value={room.roomId}>
-                          {room.roomCode} / {room.roomTypeName}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <form className="block-form" onSubmit={handleCreateRoomBlock}>
-                  <div className="field-grid">
-                    <label>
-                      Room
-                      <select value={newBlockRoomId} onChange={(event) => setNewBlockRoomId(event.target.value)}>
-                        <option value="">Select a room</option>
-                        {roomBlockManagement.rooms.map((room) => (
-                          <option key={room.roomId} value={room.roomId}>
-                            {room.roomCode} / {room.roomTypeName}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label>
-                      Reason type
-                      <select
-                        value={newBlockReasonType}
-                        onChange={(event) => setNewBlockReasonType(event.target.value as RoomBlockReasonType)}
-                      >
-                        {roomBlockReasonChoices.map((reason) => (
-                          <option key={reason.value} value={reason.value}>
-                            {reason.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label>
-                      Start date
-                      <input
-                        type="date"
-                        value={newBlockStartDate}
-                        onChange={(event) => setNewBlockStartDate(event.target.value)}
-                      />
-                    </label>
-
-                    <label>
-                      End date
-                      <input
-                        type="date"
-                        value={newBlockEndDate}
-                        onChange={(event) => setNewBlockEndDate(event.target.value)}
-                      />
-                    </label>
-                  </div>
-
-                  <label>
-                    Reason note
-                    <textarea
-                      rows={3}
-                      value={newBlockReasonText}
-                      placeholder="Optional operational note for this block"
-                      onChange={(event) => setNewBlockReasonText(event.target.value)}
-                    />
-                  </label>
-
-                  <div className="block-actions">
-                    <button type="submit" disabled={creatingRoomBlock}>
-                      {creatingRoomBlock ? 'Creating...' : 'Create room block'}
-                    </button>
-                  </div>
-                </form>
-
-                {roomBlockManagement.blocks.length === 0 ? (
-                  <p className="empty-state">No room blocks match the current accommodation or room filter.</p>
-                ) : (
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Block</th>
-                          <th>Room</th>
-                          <th>Date range</th>
-                          <th>Reason</th>
-                          <th>Created</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {roomBlockManagement.blocks.map((block) => (
-                          <tr key={block.blockId}>
-                            <td>
-                              <strong>Block {block.blockId}</strong>
-                              <div className="row-subtext">{block.accommodationName}</div>
-                              <span className={`status-pill status-${block.status.toLowerCase()}`}>
-                                {block.status}
-                              </span>
-                            </td>
-                            <td>
-                              {block.roomCode}
-                              <div className="row-subtext">{block.roomTypeName}</div>
-                            </td>
-                            <td>{block.startDate} to {block.endDate}</td>
-                            <td>
-                              <div>{formatBlockReasonType(block.reasonType)}</div>
-                              {block.reasonText ? <div className="row-subtext">{block.reasonText}</div> : null}
-                            </td>
-                            <td>
-                              <div>{block.createdByName}</div>
-                              <div className="row-subtext">{block.createdByLoginId}</div>
-                              <div className="row-subtext">{formatTimestamp(block.createdAt)}</div>
-                            </td>
-                            <td>
-                              {block.status === 'ACTIVE' ? (
-                                <button
-                                  type="button"
-                                  className="danger-button"
-                                  disabled={deactivatingBlockId === block.blockId}
-                                  onClick={() => void handleDeactivateRoomBlock(block.blockId)}
-                                >
-                                  {deactivatingBlockId === block.blockId ? 'Working...' : 'Deactivate'}
-                                </button>
-                              ) : (
-                                <span className="row-subtext">Already inactive</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>Pricing management</h2>
-                <p className="muted">
-                  Create and deactivate room-type additive delta policies. Overlapping active policies stay allowed and
-                  stack on top of the base price when their date and weekday masks both apply.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() =>
-                  void loadPricePolicies(
-                    true,
-                    pricingAccommodationId === ''
-                      ? pricePolicyManagement?.selectedAccommodationId ?? null
-                      : Number(pricingAccommodationId),
-                    pricingRoomTypeFilterId === 'ALL' ? null : Number(pricingRoomTypeFilterId)
-                  )
-                }
-              >
-                {loadingPricePolicies ? 'Refreshing...' : 'Refresh pricing'}
-              </button>
-            </div>
-
-            {!pricePolicyManagement || pricePolicyManagement.accommodations.length === 0 ? (
-              <p className="empty-state">No accessible accommodations are available for pricing management.</p>
-            ) : (
-              <div className="detail-stack">
-                <div className="field-grid">
-                  <label>
-                    Accommodation
-                    <select
-                      value={pricingAccommodationId}
-                      onChange={(event) => void handleAccommodationPricingFilterChange(event.target.value)}
-                    >
-                      {pricePolicyManagement.accommodations.map((accommodation) => (
-                        <option key={accommodation.accommodationId} value={accommodation.accommodationId}>
-                          {accommodation.accommodationName} / {accommodation.region}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label>
-                    Room type filter
-                    <select
-                      value={pricingRoomTypeFilterId}
-                      onChange={(event) => void handleRoomTypePricingFilterChange(event.target.value)}
-                    >
-                      <option value="ALL">All room types</option>
-                      {pricePolicyManagement.roomTypes.map((roomType) => (
-                        <option key={roomType.roomTypeId} value={roomType.roomTypeId}>
-                          {roomType.roomTypeName} / Base {roomType.basePrice.toLocaleString('ko-KR')} KRW
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <form className="block-form" onSubmit={handleCreatePricePolicy}>
-                  <div className="field-grid">
-                    <label>
-                      Room type
-                      <select value={newPolicyRoomTypeId} onChange={(event) => setNewPolicyRoomTypeId(event.target.value)}>
-                        <option value="">Select a room type</option>
-                        {pricePolicyManagement.roomTypes.map((roomType) => (
-                          <option key={roomType.roomTypeId} value={roomType.roomTypeId}>
-                            {roomType.roomTypeName} / Base {roomType.basePrice.toLocaleString('ko-KR')} KRW
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label>
-                      Policy name
-                      <input
-                        value={newPolicyName}
-                        placeholder="Weekend uplift"
-                        onChange={(event) => setNewPolicyName(event.target.value)}
-                      />
-                    </label>
-
-                    <label>
-                      Start date
-                      <input
-                        type="date"
-                        value={newPolicyStartDate}
-                        onChange={(event) => setNewPolicyStartDate(event.target.value)}
-                      />
-                    </label>
-
-                    <label>
-                      End date
-                      <input
-                        type="date"
-                        value={newPolicyEndDate}
-                        onChange={(event) => setNewPolicyEndDate(event.target.value)}
-                      />
-                    </label>
-                  </div>
-
-                  <div className="field-grid">
-                    <label>
-                      Additive delta amount (KRW)
-                      <input
-                        type="number"
-                        step="1000"
-                        value={newPolicyDeltaAmount}
-                        placeholder="15000 or -5000"
-                        onChange={(event) => setNewPolicyDeltaAmount(event.target.value)}
-                      />
-                    </label>
-                  </div>
-
-                  <div className="weekday-picker">
-                    <span className="weekday-label">Weekday mask</span>
-                    <div className="weekday-options">
-                      {pricingWeekdayOptions.map((option) => (
-                        <label key={option.bit} className="weekday-option">
-                          <input
-                            type="checkbox"
-                            checked={newPolicyDayBits.includes(option.bit)}
-                            onChange={() => toggleNewPolicyDayBit(option.bit)}
-                          />
-                          <span>{option.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="row-subtext">
-                      Leave all days unchecked to apply the additive delta every day. If multiple active policies
-                      overlap, their deltas are summed.
-                    </p>
-                  </div>
-
-                  <div className="block-actions">
-                    <button type="submit" disabled={creatingPricePolicy}>
-                      {creatingPricePolicy ? 'Creating...' : 'Create price policy'}
-                    </button>
-                  </div>
-                </form>
-
-                {pricePolicyManagement.policies.length === 0 ? (
-                  <p className="empty-state">No price policies match the current accommodation or room-type filter.</p>
-                ) : (
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Policy</th>
-                          <th>Room type</th>
-                          <th>Date range</th>
-                          <th>Delta</th>
-                          <th>Weekdays</th>
-                          <th>Created</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pricePolicyManagement.policies.map((policy) => (
-                          <tr key={policy.policyId}>
-                            <td>
-                              <strong>{policy.policyName}</strong>
-                              <div className="row-subtext">Policy {policy.policyId}</div>
-                              <div className="row-subtext">{policy.accommodationName}</div>
-                              <span className={`status-pill status-${policy.status.toLowerCase()}`}>{policy.status}</span>
-                            </td>
-                            <td>
-                              {policy.roomTypeName}
-                              <div className="row-subtext">Room type ID {policy.roomTypeId}</div>
-                            </td>
-                            <td>{policy.startDate} to {policy.endDate}</td>
-                            <td>{formatPriceDelta(policy.deltaAmount)}</td>
-                            <td>{formatPricingDayMask(policy.dayOfWeekMask)}</td>
-                            <td>{formatTimestamp(policy.createdAt)}</td>
-                            <td>
-                              {policy.status === 'ACTIVE' ? (
-                                <button
-                                  type="button"
-                                  className="danger-button"
-                                  disabled={deactivatingPolicyId === policy.policyId}
-                                  onClick={() => void handleDeactivatePricePolicy(policy.policyId)}
-                                >
-                                  {deactivatingPolicyId === policy.policyId ? 'Working...' : 'Deactivate'}
-                                </button>
-                              ) : (
-                                <span className="row-subtext">Already inactive</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>Reservation detail</h2>
-                <p className="muted">
-                  Detail includes nightly assignments, status history, and block/pricing context so operators can
-                  understand why a room is assignable or blocked right now.
-                </p>
-              </div>
-              {selectedReservationId ? (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => void handleOpenDetail(selectedReservationId, true)}
-                  disabled={loadingDetail}
-                >
-                  {loadingDetail ? 'Refreshing...' : 'Refresh detail'}
-                </button>
-              ) : null}
-            </div>
-
-            {!reservationDetail ? (
-              <p className="empty-state">Open one reservation from the list to inspect detail and reassignment context.</p>
-            ) : (
-              <div className="detail-stack">
-                <div className="detail-summary">
-                  <div>
-                    <h3>{reservationDetail.reservationNo}</h3>
-                    <p className="detail-line">
-                      {reservationDetail.accommodation.accommodationName} / {reservationDetail.roomType.roomTypeName}
-                    </p>
-                    <p className="detail-line">
-                      {reservationDetail.checkInDate} to {reservationDetail.checkOutDate}
-                    </p>
-                  </div>
-                  <div className="summary-meta">
-                    <span className={`status-pill status-${reservationDetail.status.toLowerCase()}`}>
-                      {reservationDetail.status}
-                    </span>
-                    <span>{reservationDetail.reassignmentPossible ? 'Reassignment open' : 'Reassignment closed'}</span>
-                    <span>{reservationDetail.hasRelevantBlocks ? 'Block overlap present' : 'No block overlap'}</span>
-                    <span>{reservationDetail.hasRelevantPricing ? 'Pricing overlap present' : 'No pricing overlap'}</span>
-                  </div>
-                </div>
-
-                <div className="reservation-detail-grid">
-                  <section className="detail-card">
-                    <h4>Guest summary</h4>
-                    <p className="detail-line"><strong>{reservationDetail.guest.guestName}</strong></p>
-                    <p className="detail-line">{reservationDetail.guest.guestLoginId}</p>
-                    <p className="detail-line">Guest ID {reservationDetail.guest.guestUserId}</p>
-                    <p className="detail-line">Guest count {reservationDetail.guestCount}</p>
-                  </section>
-
-                  <section className="detail-card">
-                    <h4>Accommodation summary</h4>
-                    <p className="detail-line">{reservationDetail.accommodation.accommodationName}</p>
-                    <p className="detail-line">{reservationDetail.accommodation.region}</p>
-                    <p className="detail-line">{reservationDetail.accommodation.address}</p>
-                    <p className="detail-line">
-                      Check-in {reservationDetail.checkInTime} / Check-out {reservationDetail.checkOutTime}
-                    </p>
-                  </section>
-
-                  <section className="detail-card">
-                    <h4>Timestamps</h4>
-                    <p className="detail-line">Requested {formatTimestamp(reservationDetail.requestedAt)}</p>
-                    <p className="detail-line">Confirmed {formatTimestamp(reservationDetail.confirmedAt)}</p>
-                    <p className="detail-line">Cancelled {formatTimestamp(reservationDetail.cancelledAt)}</p>
-                  </section>
-
-                  <section className="detail-card">
-                    <h4>Pending decisions</h4>
-                    {reservationDetail.status !== 'PENDING' ? (
-                      <p className="empty-state">Approve/reject actions are available only while the reservation is pending.</p>
-                    ) : (
-                      <>
-                        <input
-                          value={rejectReasons[reservationDetail.reservationId] ?? ''}
-                          placeholder="Optional reject reason"
-                          onChange={(event) =>
-                            setRejectReasons((current) => ({
-                              ...current,
-                              [reservationDetail.reservationId]: event.target.value
-                            }))
-                          }
-                        />
-                        <div className="action-group">
-                          <button
-                            type="button"
-                            disabled={decisioningReservationId === reservationDetail.reservationId}
-                            onClick={() =>
-                              void handleApprove(selectedReservationInList ?? reservationDetailToSummary(reservationDetail))
-                            }
-                          >
-                            {decisioningReservationId === reservationDetail.reservationId ? 'Working...' : 'Approve'}
-                          </button>
-                          <button
-                            type="button"
-                            className="danger-button"
-                            disabled={decisioningReservationId === reservationDetail.reservationId}
-                            onClick={() =>
-                              void handleReject(selectedReservationInList ?? reservationDetailToSummary(reservationDetail))
-                            }
-                          >
-                            {decisioningReservationId === reservationDetail.reservationId ? 'Working...' : 'Reject'}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </section>
-                </div>
-
-                <section className="detail-card detail-card-wide">
-                  <h4>Nightly assignments</h4>
-                  <div className="night-ops-list">
-                    {reservationDetail.nights.map((night) => {
-                      const selectedRoomId = reassignmentSelections[night.reservationNightId] ?? '';
-                      const canSubmitReassignment =
-                        night.reassignmentAllowed &&
-                        night.availableReassignmentRooms.length > 0 &&
-                        selectedRoomId !== '';
-                      return (
-                        <article key={night.reservationNightId} className="night-ops-card">
-                          <div className="night-ops-header">
-                            <strong>{night.stayDate}</strong>
-                            <span>
-                              Assigned {night.assignedRoomCode} / {night.assignedRoomTypeName}
-                            </span>
-                          </div>
-                          <div className="signal-list">
-                            <span>{night.assignedRoomBlocked ? 'Assigned room currently blocked' : 'Assigned room clear'}</span>
-                            <span>{night.assignedRoomTypeOverride ? 'Cross-type override active' : 'Booked room type match'}</span>
-                            <span>{night.reassignmentAllowed ? 'Editable night' : night.reassignmentBlockedReason ?? 'Locked night'}</span>
-                          </div>
-                          {night.reassignmentAllowed ? (
-                            night.availableReassignmentRooms.length === 0 ? (
-                              <p className="empty-state">No valid alternative rooms are available for this night right now.</p>
-                            ) : (
-                              <div className="reassignment-row">
-                                <select
-                                  value={selectedRoomId}
-                                  onChange={(event) =>
-                                    setReassignmentSelections((current) => ({
-                                      ...current,
-                                      [night.reservationNightId]: event.target.value
-                                    }))
-                                  }
-                                >
-                                  {night.availableReassignmentRooms.map((room) => (
-                                    <option key={room.roomId} value={room.roomId}>
-                                      {room.roomCode} / {room.roomTypeName}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  type="button"
-                                  disabled={!canSubmitReassignment || reassigningNightId === night.reservationNightId}
-                                  onClick={() => void handleReassignNight(night)}
-                                >
-                                  {reassigningNightId === night.reservationNightId ? 'Reassigning...' : 'Reassign night'}
-                                </button>
-                              </div>
-                            )
-                          ) : null}
-                        </article>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                <div className="reservation-detail-grid">
-                  <section className="detail-card">
-                    <h4>Block context</h4>
-                    {reservationDetail.blockContexts.length === 0 ? (
-                      <p className="empty-state">No active room blocks overlap this stay.</p>
-                    ) : (
-                      <div className="history-list">
-                        {reservationDetail.blockContexts.map((block) => (
-                          <article key={block.blockId} className="history-item">
-                            <div className="history-header">
-                              <strong>{block.roomCode} / {block.roomTypeName}</strong>
-                              <span>{block.startDate} to {block.endDate}</span>
-                            </div>
-                            <p className="detail-line">{formatBlockReasonType(block.reasonType)}</p>
-                            {block.reasonText ? <p className="detail-line history-reason">{block.reasonText}</p> : null}
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-
-                  <section className="detail-card">
-                    <h4>Pricing context</h4>
-                    {reservationDetail.pricingPolicies.length === 0 ? (
-                      <p className="empty-state">No active pricing policies overlap the booked room type for this stay.</p>
-                    ) : (
-                      <div className="history-list">
-                        {reservationDetail.pricingPolicies.map((policy) => (
-                          <article key={policy.policyId} className="history-item">
-                            <div className="history-header">
-                              <strong>{policy.policyName}</strong>
-                              <span>{policy.startDate} to {policy.endDate}</span>
-                            </div>
-                            <p className="detail-line">{policy.roomTypeName}</p>
-                            <p className="detail-line">Delta {formatPriceDelta(policy.deltaAmount)}</p>
-                            <p className="detail-line">{formatPricingDayMask(policy.dayOfWeekMask)}</p>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-
-                  <section className="detail-card detail-card-wide">
-                    <h4>Status history</h4>
-                    {reservationDetail.statusHistory.length === 0 ? (
-                      <p className="empty-state">No status events recorded yet.</p>
-                    ) : (
-                      <div className="history-list">
-                        {reservationDetail.statusHistory.map((event) => (
-                          <article key={event.historyId} className="history-item">
-                            <div className="history-header">
-                              <strong>{formatReservationAction(event.actionType)}</strong>
-                              <span>{formatTimestamp(event.changedAt)}</span>
-                            </div>
-                            <p className="detail-line">
-                              {event.fromStatus ? `${event.fromStatus} -> ${event.toStatus}` : event.toStatus}
-                            </p>
-                            <p className="detail-line">By {event.changedByName} ({event.changedByLoginId})</p>
-                            {event.reasonText ? <p className="detail-line history-reason">{event.reasonText}</p> : null}
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                </div>
-              </div>
-            )}
-          </section>
-        </main>
-      ) : null}
-    </div>
+    <OpsShell
+      user={user}
+      currentPage={currentPage}
+      navItems={navItems}
+      banner={banner}
+      onNavigate={setCurrentPage}
+      onLogout={() => void handleLogout()}
+    >
+      {renderCurrentPage()}
+    </OpsShell>
   );
+}
+
+function toServerDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  const second = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
 }
 
 export default App;

@@ -1,13 +1,19 @@
 package com.guesthouse.opsapi.reservation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetCommandMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetQueryMapper;
+import com.guesthouse.opsapi.reservation.api.CancelReservationRequest;
 import com.guesthouse.opsapi.reservation.api.ReassignReservationNightChangeRequest;
 import com.guesthouse.opsapi.reservation.api.ReassignReservationRequest;
+import com.guesthouse.opsapi.reservation.api.SwapReservationNightRequest;
 import com.guesthouse.opsapi.reservation.api.RejectReservationRequest;
 import com.guesthouse.opsapi.reservation.service.OpsReassignmentCandidateView;
+import com.guesthouse.opsapi.reservation.service.OpsReservationCalendarView;
 import com.guesthouse.opsapi.reservation.service.OpsReservationDetailView;
 import com.guesthouse.opsapi.reservation.service.OpsReservationNightView;
 import com.guesthouse.opsapi.reservation.service.OpsReservationQueryService;
+import com.guesthouse.opsapi.reservation.service.ReservationNightSwapResult;
 import com.guesthouse.opsapi.reservation.service.ReservationDecisionResult;
 import com.guesthouse.opsapi.reservation.service.ReservationDecisionService;
 import com.guesthouse.opsapi.reservation.service.ReservationReassignmentResult;
@@ -53,7 +59,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -132,6 +137,12 @@ class OpsReservationControllerWebTest {
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
 
+    @MockBean
+    private HostAssetQueryMapper hostAssetQueryMapper;
+
+    @MockBean
+    private HostAssetCommandMapper hostAssetCommandMapper;
+
     @Test
     void reservationsReturnsFilteredListForHost() throws Exception {
         when(opsReservationQueryService.findReservations(any(SessionUser.class), eq(ReservationStatus.CONFIRMED)))
@@ -180,6 +191,31 @@ class OpsReservationControllerWebTest {
     }
 
     @Test
+    void reservationCalendarReturnsGroupedGridData() throws Exception {
+        when(opsReservationQueryService.getReservationCalendar(
+                any(SessionUser.class),
+                eq(501L),
+                eq(LocalDate.of(2026, 4, 14)),
+                eq(365)
+        )).thenReturn(calendarView());
+
+        mockMvc.perform(
+                        get("/api/v1/reservations/calendar")
+                                .param("accommodationId", "501")
+                                .param("startDate", "2026-04-14")
+                                .param("days", "365")
+                                .session(hostSession())
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.selectedAccommodationId").value(501))
+                .andExpect(jsonPath("$.data.visibleDates[0]").value("2026-04-14"))
+                .andExpect(jsonPath("$.data.roomTypes[0].rooms[0].roomCode").value("301"))
+                .andExpect(jsonPath("$.data.reservations[0].reservationNo").value("GH-202604-0002"))
+                .andExpect(jsonPath("$.data.assignmentCells[0].reservationNightId").value(3001))
+                .andExpect(jsonPath("$.data.blockCells[0].roomId").value(7005));
+    }
+
+    @Test
     void approveReservationReturnsConfirmedResultForAdmin() throws Exception {
         when(reservationDecisionService.approveReservation(eq(902L), any(SessionUser.class)))
                 .thenReturn(new ReservationDecisionResult(
@@ -218,6 +254,26 @@ class OpsReservationControllerWebTest {
     }
 
     @Test
+    void cancelReservationReturnsCancelledResultForHost() throws Exception {
+        when(reservationDecisionService.cancelReservation(eq(902L), any(SessionUser.class), eq("Guest requested change")))
+                .thenReturn(new ReservationDecisionResult(
+                        902L,
+                        "GH-202604-0002",
+                        ReservationStatus.CANCELLED,
+                        OffsetDateTime.parse("2026-04-03T12:07:00+09:00")
+                ));
+
+        mockMvc.perform(
+                        post("/api/v1/reservations/902/cancel")
+                                .session(hostSession())
+                                .contentType(APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new CancelReservationRequest("Guest requested change")))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+    }
+
+    @Test
     void reassignReservationReturnsChangedNightCount() throws Exception {
         when(reservationReassignmentService.reassignReservation(eq(902L), any(), any(SessionUser.class)))
                 .thenReturn(new ReservationReassignmentResult(
@@ -237,6 +293,30 @@ class OpsReservationControllerWebTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.changedNightCount").value(1));
+    }
+
+    @Test
+    void swapReservationNightsReturnsBothReservationNumbers() throws Exception {
+        when(reservationReassignmentService.swapReservationNights(any(), any(SessionUser.class)))
+                .thenReturn(new ReservationNightSwapResult(
+                        902L,
+                        "GH-202604-0002",
+                        903L,
+                        "GH-202604-0003",
+                        LocalDate.of(2026, 4, 14),
+                        OffsetDateTime.parse("2026-04-03T12:11:00+09:00")
+                ));
+
+        mockMvc.perform(
+                        post("/api/v1/reservations/swap-nights")
+                                .session(hostSession())
+                                .contentType(APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new SwapReservationNightRequest(902L, 3001L, 903L, 3002L)))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sourceReservationNo").value("GH-202604-0002"))
+                .andExpect(jsonPath("$.data.targetReservationNo").value("GH-202604-0003"))
+                .andExpect(jsonPath("$.data.stayDate").value("2026-04-14"));
     }
 
     @Test
@@ -361,6 +441,52 @@ class OpsReservationControllerWebTest {
                 List.of(block),
                 List.of(policy),
                 true
+        );
+    }
+
+    private OpsReservationCalendarView calendarView() {
+        return new OpsReservationCalendarView(
+                501L,
+                LocalDate.of(2026, 4, 14),
+                LocalDate.of(2026, 4, 21),
+                List.of(LocalDate.of(2026, 4, 14), LocalDate.of(2026, 4, 15), LocalDate.of(2026, 4, 16)),
+                List.of(new OpsReservationCalendarView.AccommodationOption(501L, "Seoul Bridge Guesthouse", "SEOUL")),
+                List.of(new OpsReservationCalendarView.RoomTypeRow(
+                        1001L,
+                        "Standard Double",
+                        List.of(new OpsReservationCalendarView.RoomRow(7001L, "301"))
+                )),
+                List.of(new OpsReservationCalendarView.ReservationRow(
+                        902L,
+                        "GH-202604-0002",
+                        "guest.demo",
+                        "Guest Demo",
+                        2,
+                        1001L,
+                        "Standard Double",
+                        ReservationStatus.PENDING,
+                        LocalDate.of(2026, 4, 14),
+                        LocalDate.of(2026, 4, 16),
+                        OffsetDateTime.parse("2026-04-02T11:00:00+09:00"),
+                        true
+                )),
+                List.of(new OpsReservationCalendarView.AssignmentCell(
+                        902L,
+                        3001L,
+                        LocalDate.of(2026, 4, 14),
+                        7001L,
+                        "301",
+                        1001L,
+                        "Standard Double",
+                        true
+                )),
+                List.of(new OpsReservationCalendarView.BlockCell(
+                        88L,
+                        7005L,
+                        LocalDate.of(2026, 4, 14),
+                        "MAINTENANCE",
+                        "Boiler issue"
+                ))
         );
     }
 }

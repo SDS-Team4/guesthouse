@@ -48,6 +48,26 @@ public class AuthRateLimitService {
         enforceLimit("signup", "global", "all", rule.getGlobalLimit(), rule.getGlobalWindowSeconds());
     }
 
+    public void assertRecoveryRequestAllowed(String clientIp) {
+        if (!authRateLimitProperties.isEnabled()) {
+            return;
+        }
+
+        AuthRateLimitProperties.Rule rule = authRateLimitProperties.getRecoveryRequest();
+        enforceLimit("recovery-request", "ip", normalizeIdentifier(clientIp), rule.getPerIpLimit(), rule.getPerIpWindowSeconds());
+        enforceLimit("recovery-request", "global", "all", rule.getGlobalLimit(), rule.getGlobalWindowSeconds());
+    }
+
+    public void assertRecoveryVerifyAllowed(String clientIp) {
+        if (!authRateLimitProperties.isEnabled()) {
+            return;
+        }
+
+        AuthRateLimitProperties.Rule rule = authRateLimitProperties.getRecoveryVerify();
+        enforceLimit("recovery-verify", "ip", normalizeIdentifier(clientIp), rule.getPerIpLimit(), rule.getPerIpWindowSeconds());
+        enforceLimit("recovery-verify", "global", "all", rule.getGlobalLimit(), rule.getGlobalWindowSeconds());
+    }
+
     private void enforceLimit(
             String action,
             String scope,

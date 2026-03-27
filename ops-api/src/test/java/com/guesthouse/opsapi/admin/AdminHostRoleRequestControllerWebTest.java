@@ -5,6 +5,8 @@ import com.guesthouse.opsapi.admin.api.AdminHostRoleRequestDecisionRequest;
 import com.guesthouse.opsapi.admin.service.AdminHostRoleRequestCommandService;
 import com.guesthouse.opsapi.admin.service.AdminHostRoleRequestMutationResult;
 import com.guesthouse.opsapi.admin.service.AdminHostRoleRequestQueryService;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetCommandMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetQueryMapper;
 import com.guesthouse.shared.auth.config.AuthWebMvcConfigurer;
 import com.guesthouse.shared.auth.session.SessionUser;
 import com.guesthouse.shared.db.audit.mapper.AuditLogMapper;
@@ -111,6 +113,12 @@ class AdminHostRoleRequestControllerWebTest {
 
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
+
+    @MockBean
+    private HostAssetQueryMapper hostAssetQueryMapper;
+
+    @MockBean
+    private HostAssetCommandMapper hostAssetCommandMapper;
 
     @Test
     void hostRoleRequestListReturnsPayload() throws Exception {

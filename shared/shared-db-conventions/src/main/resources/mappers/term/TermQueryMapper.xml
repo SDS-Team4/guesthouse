@@ -13,6 +13,30 @@
         <result property="effectiveAt" column="effective_at"/>
     </resultMap>
 
+    <resultMap id="AdminTermListRecordMap" type="com.guesthouse.shared.db.term.model.AdminTermListRecord">
+        <id property="termId" column="term_id"/>
+        <result property="category" column="category"/>
+        <result property="title" column="title"/>
+        <result property="version" column="version"/>
+        <result property="required" column="is_required"/>
+        <result property="status" column="status"/>
+        <result property="effectiveAt" column="effective_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="AdminTermDetailRecordMap" type="com.guesthouse.shared.db.term.model.AdminTermDetailRecord">
+        <id property="termId" column="term_id"/>
+        <result property="category" column="category"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="version" column="version"/>
+        <result property="required" column="is_required"/>
+        <result property="status" column="status"/>
+        <result property="effectiveAt" column="effective_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
     <select id="findPublishedRequiredTerms" resultMap="PublishedRequiredTermRecordMap">
         SELECT
             t.term_id,
@@ -25,5 +49,81 @@
         WHERE t.status = 'PUBLISHED'
           AND t.is_required = TRUE
         ORDER BY t.effective_at ASC, t.term_id ASC
+    </select>
+
+    <select id="findTermsForAdminList" resultMap="AdminTermListRecordMap">
+        SELECT
+            t.term_id,
+            t.category,
+            t.title,
+            t.version,
+            t.is_required,
+            t.status,
+            t.effective_at,
+            t.updated_at
+        FROM terms t
+        ORDER BY
+            CASE t.category
+                WHEN 'SERVICE' THEN 1
+                WHEN 'PRIVACY' THEN 2
+                WHEN 'MARKETING' THEN 3
+                ELSE 9
+            END,
+            CASE t.status
+                WHEN 'PUBLISHED' THEN 1
+                WHEN 'DRAFT' THEN 2
+                ELSE 3
+            END,
+            t.effective_at DESC,
+            t.term_id DESC
+    </select>
+
+    <select id="findAdminTermDetailById" resultMap="AdminTermDetailRecordMap">
+        SELECT
+            t.term_id,
+            t.category,
+            t.title,
+            t.content,
+            t.version,
+            t.is_required,
+            t.status,
+            t.effective_at,
+            t.created_at,
+            t.updated_at
+        FROM terms t
+        WHERE t.term_id = #{termId}
+    </select>
+
+    <select id="lockAdminTermById" resultMap="AdminTermDetailRecordMap">
+        SELECT
+            t.term_id,
+            t.category,
+            t.title,
+            t.content,
+            t.version,
+            t.is_required,
+            t.status,
+            t.effective_at,
+            t.created_at,
+            t.updated_at
+        FROM terms t
+        WHERE t.term_id = #{termId}
+        FOR UPDATE
+    </select>
+
+    <select id="lockTermsByCategory" resultMap="AdminTermListRecordMap">
+        SELECT
+            t.term_id,
+            t.category,
+            t.title,
+            t.version,
+            t.is_required,
+            t.status,
+            t.effective_at,
+            t.updated_at
+        FROM terms t
+        WHERE t.category = #{category}
+        ORDER BY t.term_id ASC
+        FOR UPDATE
     </select>
 </mapper>

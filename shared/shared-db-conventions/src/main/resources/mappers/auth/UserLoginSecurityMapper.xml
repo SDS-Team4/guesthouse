@@ -41,4 +41,13 @@
             password_changed_at = #{changedAt}
         WHERE user_id = #{userId}
     </update>
+
+    <update id="clearFailureState">
+        UPDATE user_login_security
+        SET
+            failed_login_count = 0,
+            last_failed_at = NULL,
+            locked_until = NULL
+        WHERE user_id = #{userId}
+    </update>
 </mapper>

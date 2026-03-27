@@ -5,9 +5,13 @@ import com.guesthouse.guestapi.auth.api.SignupRequest;
 import com.guesthouse.guestapi.auth.service.GuestSignupResult;
 import com.guesthouse.guestapi.auth.service.GuestSignupService;
 import com.guesthouse.shared.auth.config.AuthWebMvcConfigurer;
+import com.guesthouse.shared.auth.service.AccountRecoveryService;
 import com.guesthouse.shared.auth.service.SessionAuthenticationService;
+import com.guesthouse.shared.auth.session.SessionLifecycleService;
+import com.guesthouse.shared.auth.session.SessionAuthConstants;
 import com.guesthouse.shared.auth.session.SessionUser;
 import com.guesthouse.shared.db.auth.mapper.UserLoginSecurityMapper;
+import com.guesthouse.shared.db.auth.mapper.PasswordRecoveryVerificationMapper;
 import com.guesthouse.shared.db.auth.mapper.UserQueryMapper;
 import com.guesthouse.shared.db.audit.mapper.AuditLogMapper;
 import com.guesthouse.shared.db.pricing.mapper.PricePolicyCommandMapper;
@@ -18,6 +22,7 @@ import com.guesthouse.shared.db.reservation.mapper.ReservationCommandMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationInventoryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
 import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
+import com.guesthouse.shared.db.term.mapper.TermCommandMapper;
 import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountCommandMapper;
 import com.guesthouse.shared.db.user.mapper.UserAccountQueryMapper;
@@ -37,6 +42,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.OffsetDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -61,10 +67,19 @@ class GuestAuthControllerWebTest {
     private GuestSignupService guestSignupService;
 
     @MockBean
+    private AccountRecoveryService accountRecoveryService;
+
+    @MockBean
+    private SessionLifecycleService sessionLifecycleService;
+
+    @MockBean
     private UserQueryMapper userQueryMapper;
 
     @MockBean
     private UserLoginSecurityMapper userLoginSecurityMapper;
+
+    @MockBean
+    private PasswordRecoveryVerificationMapper passwordRecoveryVerificationMapper;
 
     @MockBean
     private ReservationInventoryMapper reservationInventoryMapper;
@@ -100,6 +115,9 @@ class GuestAuthControllerWebTest {
     private TermQueryMapper termQueryMapper;
 
     @MockBean
+    private TermCommandMapper termCommandMapper;
+
+    @MockBean
     private UserTermAgreementCommandMapper userTermAgreementCommandMapper;
 
     @MockBean
@@ -112,6 +130,12 @@ class GuestAuthControllerWebTest {
     void loginCreatesSessionAndMeReflectsAuthenticatedGuest() throws Exception {
         when(sessionAuthenticationService.authenticate(any(), any()))
                 .thenReturn(new SessionUser(101L, "guest-demo", "Guest Demo", UserRole.GUEST));
+        doAnswer(invocation -> {
+            jakarta.servlet.http.HttpServletRequest request = invocation.getArgument(0);
+            SessionUser sessionUser = invocation.getArgument(2);
+            request.getSession(true).setAttribute(SessionAuthConstants.SESSION_USER_ATTRIBUTE, sessionUser);
+            return null;
+        }).when(sessionLifecycleService).establishAuthenticatedSession(any(), any(), any());
 
         MockHttpSession session = (MockHttpSession) mockMvc.perform(
                         post("/api/v1/auth/login")
@@ -138,7 +162,15 @@ class GuestAuthControllerWebTest {
     @Test
     void logoutInvalidatesSessionAndSubsequentMeIsUnauthorized() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("SESSION_USER", new SessionUser(101L, "guest-demo", "Guest Demo", UserRole.GUEST));
+        session.setAttribute(SessionAuthConstants.SESSION_USER_ATTRIBUTE, new SessionUser(101L, "guest-demo", "Guest Demo", UserRole.GUEST));
+        doAnswer(invocation -> {
+            jakarta.servlet.http.HttpServletRequest request = invocation.getArgument(0);
+            jakarta.servlet.http.HttpSession currentSession = request.getSession(false);
+            if (currentSession != null) {
+                currentSession.invalidate();
+            }
+            return null;
+        }).when(sessionLifecycleService).invalidateSession(any());
 
         mockMvc.perform(
                         post("/api/v1/auth/logout")
@@ -188,7 +220,6 @@ class GuestAuthControllerWebTest {
                                 )))
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.userId").value(104))
                 .andExpect(jsonPath("$.data.loginId").value("new.guest"))
                 .andExpect(jsonPath("$.data.role").value("GUEST"))
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"));

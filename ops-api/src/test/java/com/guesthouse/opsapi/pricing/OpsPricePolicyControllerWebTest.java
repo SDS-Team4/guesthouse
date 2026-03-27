@@ -1,6 +1,8 @@
 package com.guesthouse.opsapi.pricing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetCommandMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetQueryMapper;
 import com.guesthouse.opsapi.pricing.api.CreatePricePolicyRequest;
 import com.guesthouse.opsapi.pricing.service.OpsPricePolicyCommandService;
 import com.guesthouse.opsapi.pricing.service.OpsPricePolicyManagementView;
@@ -114,6 +116,12 @@ class OpsPricePolicyControllerWebTest {
 
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
+
+    @MockBean
+    private HostAssetQueryMapper hostAssetQueryMapper;
+
+    @MockBean
+    private HostAssetCommandMapper hostAssetCommandMapper;
 
     @Test
     void pricePoliciesReturnsManagementView() throws Exception {

@@ -5,6 +5,7 @@ public enum ErrorCode {
     NOT_FOUND("NOT_FOUND", "Resource not found."),
     INVALID_CREDENTIALS("INVALID_CREDENTIALS", "Invalid credentials."),
     ACCOUNT_LOCKED("ACCOUNT_LOCKED", "Account is temporarily locked."),
+    INVALID_CSRF_TOKEN("INVALID_CSRF_TOKEN", "CSRF token is invalid."),
     TOO_MANY_REQUESTS("TOO_MANY_REQUESTS", "Too many requests."),
     DUPLICATE_LOGIN_ID("DUPLICATE_LOGIN_ID", "Login ID is already in use."),
     DUPLICATE_EMAIL("DUPLICATE_EMAIL", "Email is already in use."),

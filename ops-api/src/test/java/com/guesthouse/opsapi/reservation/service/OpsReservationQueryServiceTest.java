@@ -1,12 +1,15 @@
 package com.guesthouse.opsapi.reservation.service;
 
 import com.guesthouse.shared.auth.session.SessionUser;
+import com.guesthouse.shared.db.roomblock.mapper.RoomBlockQueryMapper;
+import com.guesthouse.shared.db.roomblock.model.OpsAccommodationOptionRecord;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
 import com.guesthouse.shared.db.reservation.model.AccommodationOccupiedRoomNightRecord;
 import com.guesthouse.shared.db.reservation.model.ActivePricePolicyRecord;
 import com.guesthouse.shared.db.reservation.model.ActiveRoomInventoryRecord;
 import com.guesthouse.shared.db.reservation.model.OpsReservationBlockContextRecord;
 import com.guesthouse.shared.db.reservation.model.OpsReservationDetailRecord;
+import com.guesthouse.shared.db.reservation.model.OpsReservationListRecord;
 import com.guesthouse.shared.db.reservation.model.OpsReservationNightRecord;
 import com.guesthouse.shared.db.reservation.model.OpsReservationStatusHistoryRecord;
 import com.guesthouse.shared.domain.api.AppException;
@@ -44,6 +47,9 @@ class OpsReservationQueryServiceTest {
     private ReservationQueryMapper reservationQueryMapper;
 
     @Mock
+    private RoomBlockQueryMapper roomBlockQueryMapper;
+
+    @Mock
     private OpsReservationRoomAvailabilitySupport roomAvailabilitySupport;
 
     private OpsReservationQueryService opsReservationQueryService;
@@ -53,6 +59,7 @@ class OpsReservationQueryServiceTest {
         Clock fixedClock = Clock.fixed(Instant.parse("2026-04-14T00:00:00Z"), ZoneId.of("Asia/Seoul"));
         opsReservationQueryService = new OpsReservationQueryService(
                 reservationQueryMapper,
+                roomBlockQueryMapper,
                 roomAvailabilitySupport,
                 fixedClock
         );
@@ -144,6 +151,119 @@ class OpsReservationQueryServiceTest {
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatus());
         assertEquals(ErrorCode.FORBIDDEN, exception.getErrorCode());
+    }
+
+    @Test
+    void getReservationCalendarBuildsGroupedRowsAssignmentsAndBlockCells() {
+        OpsAccommodationOptionRecord accommodation = new OpsAccommodationOptionRecord();
+        accommodation.setAccommodationId(501L);
+        accommodation.setAccommodationName("Seoul Bridge Guesthouse");
+        accommodation.setRegion("SEOUL");
+
+        OpsReservationListRecord summaryRecord = new OpsReservationListRecord();
+        summaryRecord.setReservationId(902L);
+        summaryRecord.setReservationNo("GH-202604-0002");
+        summaryRecord.setGuestLoginId("guest.demo");
+        summaryRecord.setGuestName("Guest Demo");
+        summaryRecord.setGuestCount(2);
+        summaryRecord.setAccommodationId(501L);
+        summaryRecord.setAccommodationName("Seoul Bridge Guesthouse");
+        summaryRecord.setRoomTypeId(1001L);
+        summaryRecord.setRoomTypeName("Standard Double");
+        summaryRecord.setStatus(ReservationStatus.PENDING);
+        summaryRecord.setCheckInDate(LocalDate.of(2026, 4, 14));
+        summaryRecord.setCheckOutDate(LocalDate.of(2026, 4, 16));
+        summaryRecord.setRequestedAt(LocalDateTime.of(2026, 4, 13, 18, 0));
+        summaryRecord.setReassignmentPossible(true);
+
+        OpsReservationNightRecord nightOne = todayNight();
+        OpsReservationNightRecord nightTwo = new OpsReservationNightRecord();
+        nightTwo.setReservationNightId(3003L);
+        nightTwo.setReservationId(902L);
+        nightTwo.setStayDate(LocalDate.of(2026, 4, 15));
+        nightTwo.setAssignedRoomId(7002L);
+        nightTwo.setAssignedRoomCode("302");
+        nightTwo.setAssignedRoomTypeId(1002L);
+        nightTwo.setAssignedRoomTypeName("Deluxe Twin");
+
+        OpsReservationBlockContextRecord blockContext = blockContext();
+
+        when(roomBlockQueryMapper.findAccessibleAccommodations(102L, false))
+                .thenReturn(List.of(accommodation));
+        when(roomAvailabilitySupport.loadActiveRoomsById(501L)).thenReturn(Map.of(
+                7001L, room(7001L, "301", 1001L, "Standard Double"),
+                7002L, room(7002L, "302", 1002L, "Deluxe Twin"),
+                7003L, room(7003L, "303", 1001L, "Standard Double")
+        ));
+        when(reservationQueryMapper.findOpsReservationsForCalendar(
+                102L,
+                false,
+                501L,
+                LocalDate.of(2026, 4, 14),
+                LocalDate.of(2026, 4, 21),
+                LocalDate.of(2026, 4, 14)
+        )).thenReturn(List.of(summaryRecord));
+        when(reservationQueryMapper.findOpsReservationNightsByReservationIds(List.of(902L)))
+                .thenReturn(List.of(nightOne, nightTwo));
+        when(reservationQueryMapper.findActiveRoomBlockContextsByAccommodationIdForDateRange(
+                501L,
+                LocalDate.of(2026, 4, 14),
+                LocalDate.of(2026, 4, 21)
+        )).thenReturn(List.of(blockContext));
+
+        OpsReservationCalendarView calendarView = opsReservationQueryService.getReservationCalendar(
+                new SessionUser(102L, "host.demo", "Host Demo", UserRole.HOST),
+                501L,
+                LocalDate.of(2026, 4, 14),
+                7
+        );
+
+        assertEquals(501L, calendarView.selectedAccommodationId());
+        assertEquals(7, calendarView.visibleDates().size());
+        assertEquals(LocalDate.of(2026, 4, 14), calendarView.visibleDates().get(0));
+        assertEquals(2, calendarView.roomTypes().size());
+        assertEquals(1, calendarView.reservations().size());
+        assertEquals(2, calendarView.assignmentCells().size());
+        assertEquals(1, calendarView.blockCells().size());
+        assertTrue(calendarView.assignmentCells().stream().allMatch(OpsReservationCalendarView.AssignmentCell::reassignmentAllowed));
+    }
+
+    @Test
+    void getReservationCalendarAllowsYearWindow() {
+        OpsAccommodationOptionRecord accommodation = new OpsAccommodationOptionRecord();
+        accommodation.setAccommodationId(501L);
+        accommodation.setAccommodationName("Seoul Bridge Guesthouse");
+        accommodation.setRegion("SEOUL");
+
+        when(roomBlockQueryMapper.findAccessibleAccommodations(102L, false))
+                .thenReturn(List.of(accommodation));
+        when(roomAvailabilitySupport.loadActiveRoomsById(501L)).thenReturn(Map.of(
+                7001L, room(7001L, "301", 1001L, "Standard Double")
+        ));
+        when(reservationQueryMapper.findOpsReservationsForCalendar(
+                102L,
+                false,
+                501L,
+                LocalDate.of(2026, 4, 14),
+                LocalDate.of(2027, 4, 14),
+                LocalDate.of(2026, 4, 14)
+        )).thenReturn(List.of());
+        when(reservationQueryMapper.findActiveRoomBlockContextsByAccommodationIdForDateRange(
+                501L,
+                LocalDate.of(2026, 4, 14),
+                LocalDate.of(2027, 4, 14)
+        )).thenReturn(List.of());
+
+        OpsReservationCalendarView calendarView = opsReservationQueryService.getReservationCalendar(
+                new SessionUser(102L, "host.demo", "Host Demo", UserRole.HOST),
+                501L,
+                LocalDate.of(2026, 4, 14),
+                365
+        );
+
+        assertEquals(365, calendarView.visibleDates().size());
+        assertEquals(LocalDate.of(2026, 4, 14), calendarView.visibleDates().get(0));
+        assertEquals(LocalDate.of(2027, 4, 13), calendarView.visibleDates().get(364));
     }
 
     private OpsReservationDetailRecord detailRecord() {

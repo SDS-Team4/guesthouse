@@ -1,7 +1,7 @@
 # STATUS
 
 ## Current milestone
-- Guest access/account alignment bundle: public browse before login, signup terms capture, guest self account management, and reservation `guest_count` persistence/exposure
+- Host/admin demo bundle A: host-first reservation operations, host asset-management foundation, operational cancellation, and smoke-test UI cleanup
 
 ## Decisions made
 - Search/detail availability stays read-only and does not allocate inventory before the existing reservation request endpoint is used.
@@ -12,6 +12,8 @@
 - Host and admin reservation operations now share the same ops runtime baseline, with admin receiving broader read/mutation access in this slice.
 - Reservation reassignment is allowed only for `reservation_nights` whose `stay_date` is on or after the current business date, including same-day operational moves.
 - Nightly reassignment may move to a different physical room and a different room type within the same accommodation, while the reservation header room type remains the originally booked type.
+- Host calendar now uses a one-year visible window and relies on horizontal scrolling rather than a short fixed operational slice.
+- Occupied-cell swap is allowed only when two reservation nights share the same stay date and both reservations remain in `PENDING` or `CONFIRMED`.
 - Block/pricing linkage in ops detail remains read-only in this slice and is meant to support later M5/M6 management work.
 - New room-level block creation rejects overlapping `ACTIVE` blocks on the same `room_id` to keep block semantics operationally unambiguous in V1.
 - Pricing target remains room-type based only, with additive signed delta semantics and no percent mode (`BD-07`).
@@ -54,21 +56,39 @@
 - `ops-api` now exposes admin-only user list/detail endpoints and admin-only host-role-request list/detail/approve/reject endpoints.
 - `ops-api` host-role-request approval now updates request review metadata and promotes the requester role from `GUEST` to `HOST` in one transaction, with minimal audit logging for create/approve/reject actions.
 - `ops-web` now includes an admin-only user management and host-role-request review panel, while existing host reservation/block/pricing panels remain unchanged for host users.
+- `ops-web` now uses a role-aware host/admin shell with dedicated live pages for reservations, reservation detail, room blocks, pricing, admin users, and host-role-request review, while preserving the existing validated ops-api contracts.
+- The original host/admin design drafts are now retained under `ops-web/src/design/` as frozen visual references rather than runtime entry files.
+- `ops-api` now exposes host-only accommodation, room type, and room create/read/update/deactivate endpoints with host ownership checks, reservation/assignment safety guards, and asset audit logging.
+- `ops-api` now supports host/admin operational reservation cancellation with required reason capture, status-history write, and existing cancellation semantics preserved.
+- `ops-web` now includes a live host properties page for accommodation profile management, room-type management, and room management, anchored from the host navigation and dashboard.
+- `ops-web` now removes preview pages from the runtime path, adds destructive-action confirmations, and rewrites the most visible host/admin copy away from smoke-test language.
+- Admin user detail now links back into host-role-request governance so the demo can move between user inspection and request review without losing context.
+- `ops-api` reservation calendar now supports a one-year visible date window for host operations.
+- `ops-api` now supports same-date occupied-cell reservation-night swap as a dedicated host/admin mutation, while keeping empty-target reassignment on the existing endpoint.
+- `ops-web` host calendar now shows compact reservation identifiers in occupied cells and lets hosts swap two occupied same-date nights by drag-and-drop.
+- `guest-api` signup success responses no longer expose the internal numeric `userId`; the public contract now returns only guest-facing account summary fields needed by the current UI.
 
 ## In progress
-- Guest access/account alignment bundle implementation:
-  anonymous accommodation browse before login,
-  signup required-terms capture,
-  guest self profile/password management,
-  reservation `guest_count` persistence and guest/ops read-model exposure.
+- Browser smoke validation for the host/admin demo bundle:
+  host login to calendar,
+  approve/reject/cancel/reassign from calendar/detail,
+  accommodation CRUD/inactivate,
+  room-type CRUD/inactivate,
+  room CRUD/status/inactivate,
+  pricing create/deactivate,
+  room-block create/deactivate,
+  admin users/detail,
+  admin host-role-request approve/reject.
 
 ## Next
-- Validate anonymous guest browse, reservation-entry auth gating, signup terms enforcement, guest profile/password change, and guest/ops reservation detail exposure of `guest_count`.
-- After this bundle, the next safest major bundle is host account and asset-management foundation, unless alignment validation shows admin governance should move earlier.
+- Run browser demo rehearsals for the host-first recording flow and remove any remaining copy/layout friction discovered in that pass.
+- If the demo script still needs more admin depth after Bundle A validation, the next safest bundle is read-only admin audit-log list/detail without reopening system-log or notice scope.
+- Guest-side follow-up remains secondary unless a host/admin demo blocker exposes a cross-flow mismatch that must be corrected.
 
 ## Known issues
 - `guest-web` uses a single-page practical smoke UI rather than routed pages, so the read slice is functional but intentionally minimal.
-- `ops-web` also remains a single-page practical smoke UI rather than a routed application.
+- `ops-web` now has internal page navigation and a draft-aligned shell, but it still does not use router-based URLs.
+- Host/admin runtime still uses internal page state rather than router-based URLs.
 - The local workspace still reports a Node engine drift warning because the repo baseline wants Node `24.x` while the current machine is on `v20.11.1`, although the validated builds completed successfully in this pass.
 - Spring Boot test code still emits `@MockBean` deprecation warnings during Gradle test compilation.
 - Role promotion updates the database immediately, but existing sessions are not force-invalidated in this slice, so new host access should be verified with a fresh ops-web login.

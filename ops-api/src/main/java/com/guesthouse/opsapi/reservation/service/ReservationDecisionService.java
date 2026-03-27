@@ -3,6 +3,7 @@ package com.guesthouse.opsapi.reservation.service;
 import com.guesthouse.shared.db.reservation.mapper.ReservationCommandMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
 import com.guesthouse.shared.db.reservation.model.ReservationDecisionTargetRecord;
+import com.guesthouse.shared.db.reservation.model.OpsReservationMutationTargetRecord;
 import com.guesthouse.shared.db.reservation.model.ReservationStatusHistoryInsertParam;
 import com.guesthouse.shared.auth.session.SessionUser;
 import com.guesthouse.shared.domain.api.AppException;
@@ -135,6 +136,74 @@ public class ReservationDecisionService {
         );
     }
 
+    @Transactional
+    public ReservationDecisionResult cancelReservation(Long reservationId, SessionUser actor, String reasonText) {
+        OpsReservationMutationTargetRecord target = reservationQueryMapper.lockOpsReservationMutationTarget(reservationId);
+        if (target == null) {
+            throw new AppException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "Reservation not found.");
+        }
+        if (actor.role() != UserRole.ADMIN && !actor.userId().equals(target.getHostUserId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, HttpStatus.FORBIDDEN);
+        }
+        if (target.getStatus() != ReservationStatus.PENDING && target.getStatus() != ReservationStatus.CONFIRMED) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.CONFLICT,
+                    "Reservation cannot be cancelled in its current status."
+            );
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        int updatedRows = reservationCommandMapper.markReservationCancelledFromOperations(reservationId, now, now);
+        if (updatedRows != 1) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.CONFLICT,
+                    "Reservation cannot be cancelled in its current status."
+            );
+        }
+
+        String normalizedReasonText = normalizeCancellationReason(reasonText, actor.role());
+        ReservationActionType actionType = actor.role() == UserRole.ADMIN
+                ? ReservationActionType.ADMIN_CANCELLED
+                : ReservationActionType.HOST_CANCELLED;
+        String reasonType = actor.role() == UserRole.ADMIN ? "ADMIN_CANCELLATION" : "HOST_CANCELLATION";
+
+        reservationCommandMapper.insertReservationStatusHistory(
+                buildHistory(
+                        reservationId,
+                        target.getStatus(),
+                        ReservationStatus.CANCELLED,
+                        actionType,
+                        actor.userId(),
+                        reasonType,
+                        normalizedReasonText,
+                        now
+                )
+        );
+
+        Map<String, Object> afterState = new LinkedHashMap<>();
+        afterState.put("status", ReservationStatus.CANCELLED.name());
+        afterState.put("reasonText", normalizedReasonText);
+        opsReservationAuditService.writeReservationAudit(
+                actor,
+                reservationId,
+                actor.role() == UserRole.ADMIN ? "RESERVATION_CANCELLED_BY_ADMIN" : "RESERVATION_CANCELLED_BY_HOST",
+                reasonType,
+                normalizedReasonText,
+                Map.of("status", target.getStatus().name()),
+                afterState,
+                now
+        );
+
+        return new ReservationDecisionResult(
+                target.getReservationId(),
+                target.getReservationNo(),
+                ReservationStatus.CANCELLED,
+                now.atZone(BUSINESS_ZONE_ID).toOffsetDateTime()
+        );
+    }
+
     private ReservationDecisionTargetRecord lockOwnedPendingReservation(Long reservationId, SessionUser actor) {
         ReservationDecisionTargetRecord target = reservationQueryMapper.lockReservationDecisionTarget(reservationId);
         if (target == null) {
@@ -177,5 +246,19 @@ public class ReservationDecisionService {
                 HttpStatus.CONFLICT,
                 "Reservation is no longer pending."
         );
+    }
+
+    private String normalizeCancellationReason(String reasonText, UserRole role) {
+        if (reasonText == null || reasonText.isBlank()) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.BAD_REQUEST,
+                    "A cancellation reason is required."
+            );
+        }
+        String normalized = reasonText.trim();
+        return normalized.isEmpty()
+                ? role == UserRole.ADMIN ? "Reservation cancelled by admin." : "Reservation cancelled by host."
+                : normalized;
     }
 }

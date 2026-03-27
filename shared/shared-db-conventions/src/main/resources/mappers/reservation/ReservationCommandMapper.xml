@@ -103,6 +103,16 @@
           AND status IN ('PENDING', 'CONFIRMED')
     </update>
 
+    <update id="markReservationCancelledFromOperations">
+        UPDATE reservations
+        SET
+            status = 'CANCELLED',
+            cancelled_at = #{cancelledAt},
+            updated_at = #{updatedAt}
+        WHERE reservation_id = #{reservationId}
+          AND status IN ('PENDING', 'CONFIRMED')
+    </update>
+
     <update id="updateReservationNightAssignedRoom">
         UPDATE reservation_nights
         SET

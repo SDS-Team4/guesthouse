@@ -31,6 +31,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -193,15 +194,94 @@ class ReservationReassignmentServiceTest {
         verify(reservationInventoryMapper, never()).lockActiveRoomsByAccommodation(any());
     }
 
-    private OpsReservationMutationTargetRecord target(ReservationStatus status) {
+    @Test
+    void swapReservationNightsAllowsSameDateOccupiedCellSwap() {
+        when(reservationQueryMapper.lockOpsReservationMutationTarget(902L)).thenReturn(target(902L, "GH-202604-0002", ReservationStatus.CONFIRMED));
+        when(reservationQueryMapper.lockOpsReservationMutationTarget(903L)).thenReturn(target(903L, "GH-202604-0003", ReservationStatus.PENDING));
+        when(reservationQueryMapper.findOpsReservationNightsByReservationIds(List.of(902L, 903L)))
+                .thenReturn(List.of(todayNight(), anotherTodayNight()));
+        when(reservationInventoryMapper.lockActiveRoomsByAccommodation(501L)).thenReturn(List.of(
+                room(7001L, "301", 1001L, "Standard Double"),
+                room(7002L, "401", 1002L, "Deluxe Twin")
+        ));
+        when(reservationInventoryMapper.findActiveRoomBlocksForAccommodationStay(
+                501L,
+                LocalDate.of(2026, 4, 14),
+                LocalDate.of(2026, 4, 15)
+        )).thenReturn(List.of());
+
+        ReservationNightSwapResult result = reservationReassignmentService.swapReservationNights(
+                new ReservationReassignmentService.ReservationNightSwapChange(902L, 3001L, 903L, 3002L),
+                hostActor()
+        );
+
+        assertEquals(902L, result.sourceReservationId());
+        assertEquals(903L, result.targetReservationId());
+        verify(reservationCommandMapper).updateReservationNightAssignedRoom(
+                3001L,
+                7002L,
+                LocalDateTime.of(2026, 4, 14, 9, 0)
+        );
+        verify(reservationCommandMapper).updateReservationNightAssignedRoom(
+                3002L,
+                7001L,
+                LocalDateTime.of(2026, 4, 14, 9, 0)
+        );
+        verify(opsReservationAuditService).writeReservationAudit(
+                any(SessionUser.class),
+                eq(902L),
+                eq("RESERVATION_NIGHT_SWAPPED"),
+                eq("OPS_SWAP"),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(opsReservationAuditService).writeReservationAudit(
+                any(SessionUser.class),
+                eq(903L),
+                eq("RESERVATION_NIGHT_SWAPPED"),
+                eq("OPS_SWAP"),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+    }
+
+    @Test
+    void swapReservationNightsRejectsDifferentStayDate() {
+        when(reservationQueryMapper.lockOpsReservationMutationTarget(902L)).thenReturn(target(902L, "GH-202604-0002", ReservationStatus.CONFIRMED));
+        when(reservationQueryMapper.lockOpsReservationMutationTarget(903L)).thenReturn(target(903L, "GH-202604-0003", ReservationStatus.PENDING));
+        when(reservationQueryMapper.findOpsReservationNightsByReservationIds(List.of(902L, 903L)))
+                .thenReturn(List.of(todayNight(), nextDayNight()));
+
+        AppException exception = assertThrows(
+                AppException.class,
+                () -> reservationReassignmentService.swapReservationNights(
+                        new ReservationReassignmentService.ReservationNightSwapChange(902L, 3001L, 903L, 3003L),
+                        hostActor()
+                )
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+        assertEquals("Only reservation nights on the same stay date can be swapped.", exception.getMessage());
+        verify(reservationCommandMapper, never()).updateReservationNightAssignedRoom(any(), any(), any());
+    }
+
+    private OpsReservationMutationTargetRecord target(Long reservationId, String reservationNo, ReservationStatus status) {
         OpsReservationMutationTargetRecord record = new OpsReservationMutationTargetRecord();
-        record.setReservationId(902L);
-        record.setReservationNo("GH-202604-0002");
+        record.setReservationId(reservationId);
+        record.setReservationNo(reservationNo);
         record.setAccommodationId(501L);
         record.setRoomTypeId(1001L);
         record.setHostUserId(102L);
         record.setStatus(status);
         return record;
+    }
+
+    private OpsReservationMutationTargetRecord target(ReservationStatus status) {
+        return target(902L, "GH-202604-0002", status);
     }
 
     private OpsReservationNightRecord todayNight() {
@@ -225,6 +305,30 @@ class ReservationReassignmentServiceTest {
         record.setAssignedRoomCode("301");
         record.setAssignedRoomTypeId(1001L);
         record.setAssignedRoomTypeName("Standard Double");
+        return record;
+    }
+
+    private OpsReservationNightRecord anotherTodayNight() {
+        OpsReservationNightRecord record = new OpsReservationNightRecord();
+        record.setReservationNightId(3002L);
+        record.setReservationId(903L);
+        record.setStayDate(LocalDate.of(2026, 4, 14));
+        record.setAssignedRoomId(7002L);
+        record.setAssignedRoomCode("401");
+        record.setAssignedRoomTypeId(1002L);
+        record.setAssignedRoomTypeName("Deluxe Twin");
+        return record;
+    }
+
+    private OpsReservationNightRecord nextDayNight() {
+        OpsReservationNightRecord record = new OpsReservationNightRecord();
+        record.setReservationNightId(3003L);
+        record.setReservationId(903L);
+        record.setStayDate(LocalDate.of(2026, 4, 15));
+        record.setAssignedRoomId(7002L);
+        record.setAssignedRoomCode("401");
+        record.setAssignedRoomTypeId(1002L);
+        record.setAssignedRoomTypeName("Deluxe Twin");
         return record;
     }
 

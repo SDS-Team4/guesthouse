@@ -4,6 +4,7 @@ import com.guesthouse.guestapi.accommodation.api.AccommodationAvailabilityCatego
 import com.guesthouse.guestapi.accommodation.api.AccommodationDetailResponse;
 import com.guesthouse.guestapi.accommodation.api.AccommodationSearchResponse;
 import com.guesthouse.guestapi.accommodation.api.RoomTypeCalendarResponse;
+import com.guesthouse.guestapi.accommodation.config.GuestPublicReadProperties;
 import com.guesthouse.shared.db.pricing.mapper.PricePolicyQueryMapper;
 import com.guesthouse.shared.db.reservation.mapper.ReservationQueryMapper;
 import com.guesthouse.shared.db.reservation.model.ActivePricePolicyRecord;
@@ -47,9 +48,14 @@ class GuestAccommodationReadServiceTest {
     @BeforeEach
     void setUp() {
         Clock fixedClock = Clock.fixed(Instant.parse("2026-04-01T00:00:00Z"), BUSINESS_ZONE_ID);
+        GuestPublicReadProperties properties = new GuestPublicReadProperties();
+        properties.setSearchCacheTtlSeconds(0);
+        properties.setDetailCacheTtlSeconds(0);
+        properties.setCalendarCacheTtlSeconds(0);
         guestAccommodationReadService = new GuestAccommodationReadService(
                 reservationQueryMapper,
                 pricePolicyQueryMapper,
+                properties,
                 fixedClock
         );
     }

@@ -8,6 +8,8 @@ public class AuthRateLimitProperties {
     private boolean enabled = true;
     private final Rule login = new Rule(30, 300, 300, 60);
     private final Rule signup = new Rule(5, 600, 30, 60);
+    private final Rule recoveryRequest = new Rule(5, 600, 30, 60);
+    private final Rule recoveryVerify = new Rule(10, 600, 60, 60);
 
     public boolean isEnabled() {
         return enabled;
@@ -23,6 +25,14 @@ public class AuthRateLimitProperties {
 
     public Rule getSignup() {
         return signup;
+    }
+
+    public Rule getRecoveryRequest() {
+        return recoveryRequest;
+    }
+
+    public Rule getRecoveryVerify() {
+        return recoveryVerify;
     }
 
     public static class Rule {

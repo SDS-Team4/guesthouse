@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.guesthouse.shared.db.term.mapper.TermCommandMapper">
+
+    <insert id="insertTerm" useGeneratedKeys="true" keyProperty="termId">
+        INSERT INTO terms (
+            category,
+            title,
+            content,
+            version,
+            is_required,
+            status,
+            effective_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{category},
+            #{title},
+            #{content},
+            #{version},
+            #{required},
+            #{status},
+            #{effectiveAt},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="updateDraftTerm">
+        UPDATE terms
+        SET
+            title = #{title},
+            content = #{content},
+            version = #{version},
+            is_required = #{required},
+            effective_at = #{effectiveAt},
+            updated_at = #{updatedAt}
+        WHERE term_id = #{termId}
+          AND status = 'DRAFT'
+    </update>
+
+    <update id="archivePublishedTermsByCategory">
+        UPDATE terms
+        SET
+            status = 'ARCHIVED',
+            updated_at = #{updatedAt}
+        WHERE category = #{category}
+          AND status = 'PUBLISHED'
+    </update>
+
+    <update id="publishTerm">
+        UPDATE terms
+        SET
+            status = 'PUBLISHED',
+            updated_at = #{updatedAt}
+        WHERE term_id = #{termId}
+          AND status = 'DRAFT'
+    </update>
+</mapper>

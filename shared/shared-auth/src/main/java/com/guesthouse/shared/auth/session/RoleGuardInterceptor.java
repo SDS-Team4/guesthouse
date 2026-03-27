@@ -16,6 +16,16 @@ import java.util.Set;
 
 public class RoleGuardInterceptor implements HandlerInterceptor {
 
+    private final SessionIntegrityService sessionIntegrityService;
+
+    public RoleGuardInterceptor() {
+        this(null);
+    }
+
+    public RoleGuardInterceptor(SessionIntegrityService sessionIntegrityService) {
+        this.sessionIntegrityService = sessionIntegrityService;
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (!(handler instanceof HandlerMethod handlerMethod)) {
@@ -34,6 +44,10 @@ public class RoleGuardInterceptor implements HandlerInterceptor {
 
         if (sessionUser == null) {
             throw new AppException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+        }
+
+        if (sessionIntegrityService != null) {
+            sessionIntegrityService.validate(session, sessionUser);
         }
 
         Set<UserRole> allowedRoles = EnumSet.copyOf(Arrays.asList(requireRoles.value()));

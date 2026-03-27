@@ -1,6 +1,8 @@
 package com.guesthouse.opsapi.roomblock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetCommandMapper;
+import com.guesthouse.opsapi.hostasset.mapper.HostAssetQueryMapper;
 import com.guesthouse.opsapi.roomblock.api.CreateRoomBlockRequest;
 import com.guesthouse.opsapi.roomblock.service.OpsRoomBlockCommandService;
 import com.guesthouse.opsapi.roomblock.service.OpsRoomBlockManagementView;
@@ -113,6 +115,12 @@ class OpsRoomBlockControllerWebTest {
 
     @MockBean
     private HostRoleRequestCommandMapper hostRoleRequestCommandMapper;
+
+    @MockBean
+    private HostAssetQueryMapper hostAssetQueryMapper;
+
+    @MockBean
+    private HostAssetCommandMapper hostAssetCommandMapper;
 
     @Test
     void roomBlocksReturnsManagementView() throws Exception {

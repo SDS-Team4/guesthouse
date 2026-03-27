@@ -1,11 +1,15 @@
 package com.guesthouse.opsapi.reservation;
 
+import com.guesthouse.opsapi.reservation.api.OpsReservationCalendarResponse;
 import com.guesthouse.opsapi.reservation.api.OpsReservationDetailResponse;
 import com.guesthouse.opsapi.reservation.api.OpsReservationSummaryResponse;
+import com.guesthouse.opsapi.reservation.api.CancelReservationRequest;
 import com.guesthouse.opsapi.reservation.api.RejectReservationRequest;
 import com.guesthouse.opsapi.reservation.api.ReassignReservationRequest;
+import com.guesthouse.opsapi.reservation.api.ReservationNightSwapResponse;
 import com.guesthouse.opsapi.reservation.api.ReservationDecisionResponse;
 import com.guesthouse.opsapi.reservation.api.ReservationReassignmentResponse;
+import com.guesthouse.opsapi.reservation.api.SwapReservationNightRequest;
 import com.guesthouse.opsapi.reservation.service.OpsReservationQueryService;
 import com.guesthouse.opsapi.reservation.service.ReservationDecisionResult;
 import com.guesthouse.opsapi.reservation.service.ReservationDecisionService;
@@ -16,6 +20,7 @@ import com.guesthouse.shared.auth.session.SessionUser;
 import com.guesthouse.shared.domain.api.ApiResponse;
 import com.guesthouse.shared.domain.reservation.ReservationStatus;
 import com.guesthouse.shared.domain.user.UserRole;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -71,7 +77,27 @@ public class OpsReservationController {
         );
     }
 
-    @GetMapping("/{reservationId}")
+    @GetMapping("/calendar")
+    @RequireRoles({UserRole.HOST, UserRole.ADMIN})
+    public ApiResponse<OpsReservationCalendarResponse> findReservationCalendar(
+            @CurrentSessionUser SessionUser sessionUser,
+            @RequestParam(required = false) Long accommodationId,
+            @RequestParam LocalDate startDate,
+            @RequestParam(required = false) Integer days
+    ) {
+        return ApiResponse.success(
+                OpsReservationCalendarResponse.from(
+                        opsReservationQueryService.getReservationCalendar(
+                                sessionUser,
+                                accommodationId,
+                                startDate,
+                                days
+                        )
+                )
+        );
+    }
+
+    @GetMapping("/{reservationId:\\d+}")
     @RequireRoles({UserRole.HOST, UserRole.ADMIN})
     public ApiResponse<OpsReservationDetailResponse> findReservationDetail(
             @PathVariable Long reservationId,
@@ -84,7 +110,7 @@ public class OpsReservationController {
         );
     }
 
-    @PostMapping("/{reservationId}/approve")
+    @PostMapping("/{reservationId:\\d+}/approve")
     @RequireRoles({UserRole.HOST, UserRole.ADMIN})
     public ApiResponse<ReservationDecisionResponse> approveReservation(
             @PathVariable Long reservationId,
@@ -95,7 +121,7 @@ public class OpsReservationController {
         ));
     }
 
-    @PostMapping("/{reservationId}/reject")
+    @PostMapping("/{reservationId:\\d+}/reject")
     @RequireRoles({UserRole.HOST, UserRole.ADMIN})
     public ApiResponse<ReservationDecisionResponse> rejectReservation(
             @PathVariable Long reservationId,
@@ -108,7 +134,7 @@ public class OpsReservationController {
         ));
     }
 
-    @PostMapping("/{reservationId}/reassign")
+    @PostMapping("/{reservationId:\\d+}/reassign")
     @RequireRoles({UserRole.HOST, UserRole.ADMIN})
     public ApiResponse<ReservationReassignmentResponse> reassignReservation(
             @PathVariable Long reservationId,
@@ -127,6 +153,45 @@ public class OpsReservationController {
         return ApiResponse.success(
                 ReservationReassignmentResponse.from(
                         reservationReassignmentService.reassignReservation(reservationId, changes, sessionUser)
+                )
+        );
+    }
+
+    @PostMapping("/swap-nights")
+    @RequireRoles({UserRole.HOST, UserRole.ADMIN})
+    public ApiResponse<ReservationNightSwapResponse> swapReservationNights(
+            @CurrentSessionUser SessionUser sessionUser,
+            @RequestBody SwapReservationNightRequest swapReservationNightRequest
+    ) {
+        return ApiResponse.success(
+                ReservationNightSwapResponse.from(
+                        reservationReassignmentService.swapReservationNights(
+                                new ReservationReassignmentService.ReservationNightSwapChange(
+                                        swapReservationNightRequest == null ? null : swapReservationNightRequest.sourceReservationId(),
+                                        swapReservationNightRequest == null ? null : swapReservationNightRequest.sourceReservationNightId(),
+                                        swapReservationNightRequest == null ? null : swapReservationNightRequest.targetReservationId(),
+                                        swapReservationNightRequest == null ? null : swapReservationNightRequest.targetReservationNightId()
+                                ),
+                                sessionUser
+                        )
+                )
+        );
+    }
+
+    @PostMapping("/{reservationId:\\d+}/cancel")
+    @RequireRoles({UserRole.HOST, UserRole.ADMIN})
+    public ApiResponse<ReservationDecisionResponse> cancelReservation(
+            @PathVariable Long reservationId,
+            @CurrentSessionUser SessionUser sessionUser,
+            @Valid @RequestBody CancelReservationRequest cancelReservationRequest
+    ) {
+        return ApiResponse.success(
+                toDecisionResponse(
+                        reservationDecisionService.cancelReservation(
+                                reservationId,
+                                sessionUser,
+                                cancelReservationRequest.reasonText()
+                        )
                 )
         );
     }

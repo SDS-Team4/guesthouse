@@ -9,8 +9,11 @@ import com.guesthouse.guestapi.account.service.GuestAccountProfileView;
 import com.guesthouse.guestapi.account.service.GuestHostRoleRequestService;
 import com.guesthouse.guestapi.account.service.GuestHostRoleRequestStateView;
 import com.guesthouse.shared.auth.config.AuthWebMvcConfigurer;
+import com.guesthouse.shared.auth.service.AccountRecoveryService;
+import com.guesthouse.shared.auth.session.SessionLifecycleService;
 import com.guesthouse.shared.auth.session.SessionUser;
 import com.guesthouse.shared.db.audit.mapper.AuditLogMapper;
+import com.guesthouse.shared.db.auth.mapper.PasswordRecoveryVerificationMapper;
 import com.guesthouse.shared.db.auth.mapper.UserLoginSecurityMapper;
 import com.guesthouse.shared.db.auth.mapper.UserQueryMapper;
 import com.guesthouse.shared.db.hostrole.mapper.HostRoleRequestCommandMapper;
@@ -64,10 +67,19 @@ class GuestAccountControllerWebTest {
     private GuestHostRoleRequestService guestHostRoleRequestService;
 
     @MockBean
+    private AccountRecoveryService accountRecoveryService;
+
+    @MockBean
+    private SessionLifecycleService sessionLifecycleService;
+
+    @MockBean
     private UserQueryMapper userQueryMapper;
 
     @MockBean
     private UserLoginSecurityMapper userLoginSecurityMapper;
+
+    @MockBean
+    private PasswordRecoveryVerificationMapper passwordRecoveryVerificationMapper;
 
     @MockBean
     private ReservationInventoryMapper reservationInventoryMapper;

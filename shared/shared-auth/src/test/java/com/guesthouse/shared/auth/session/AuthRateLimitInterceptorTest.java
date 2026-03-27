@@ -37,4 +37,26 @@ class AuthRateLimitInterceptorTest {
 
         verifyNoInteractions(authRateLimitService);
     }
+
+    @Test
+    void preHandleAppliesRecoveryRequestLimit() {
+        AuthRateLimitInterceptor interceptor = new AuthRateLimitInterceptor(authRateLimitService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/find-id/request");
+        request.addHeader("X-Real-IP", "203.0.113.20");
+
+        interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
+
+        verify(authRateLimitService).assertRecoveryRequestAllowed("203.0.113.20");
+    }
+
+    @Test
+    void preHandleAppliesRecoveryVerifyLimit() {
+        AuthRateLimitInterceptor interceptor = new AuthRateLimitInterceptor(authRateLimitService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/reset-password/confirm");
+        request.addHeader("X-Real-IP", "203.0.113.21");
+
+        interceptor.preHandle(request, new MockHttpServletResponse(), new Object());
+
+        verify(authRateLimitService).assertRecoveryVerifyAllowed("203.0.113.21");
+    }
 }
