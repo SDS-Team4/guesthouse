@@ -1003,3 +1003,38 @@
   successful signup still transitions the user back to login in guest-web,
   `중복확인` success remains visible in the form,
   and signup success responses expose only the minimum data needed by the current product flow.
+## Latest Implementation Note (2026-03-27 / runtime-specific csrf cookie isolation)
+
+- Scope in for this pass:
+  a narrow frontend auth hardening fix so `guest-web` and `ops-web` do not accidentally reuse each other's CSRF cookies when both apps are open in the same browser.
+- Traceability:
+  `REQ-F-050 ~ REQ-F-061`,
+  `REQ-NF-001`,
+  `REQ-NF-002`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Problem statement:
+  both apps currently read the first cookie matching `*_CSRF`,
+  which can send the wrong token when `GUEST_API_CSRF` and `OPS_API_CSRF` coexist under `localhost`.
+- Implemented direction:
+  `guest-web` must read only `GUEST_API_CSRF`,
+  and `ops-web` must read only `OPS_API_CSRF`,
+  so runtime-specific session/CSRF boundaries remain intact even during parallel local development.
+  guest login should also force one follow-up authenticated read so the CSRF cookie is established before the first protected write.
+- Acceptance target:
+  guest reservation/account writes and ops mutation writes no longer fail with false CSRF validation errors caused by cross-app cookie selection.
+  stale CSRF cookies after local backend restarts should also recover through a safe one-time token refresh and retry on the frontend.
+
+## Latest Implementation Note (2026-03-27 / guest demo csrf fallback)
+
+- Scope in for this pass:
+  a temporary guest-api demo fallback to keep the guest reservation and host-role-request flows usable for recording while the local CSRF issue is still under investigation.
+- Traceability:
+  `REQ-F-050 ~ REQ-F-061`,
+  `REQ-F-070 ~ REQ-F-075`,
+  `REQ-NF-001`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Temporary decision:
+  set `guest-api` local `auth.session.csrf-enabled` to `false` in `application.yml`,
+  while keeping the runtime-specific CSRF cookie fixes in code so the stricter mode can be restored after the demo.
+- Risk note:
+  this is a local demo-oriented fallback and should not be treated as the target secured runtime configuration.

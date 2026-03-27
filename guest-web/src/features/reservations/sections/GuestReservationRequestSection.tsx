@@ -29,6 +29,22 @@ function formatCurrency(amount: number) {
   return `${currencyFormatter.format(amount)}원`;
 }
 
+function getReservationBlockingReason(roomType: SelectedReservationRoomType | null, guestCount: number) {
+  if (!roomType) {
+    return null;
+  }
+  if (!Number.isFinite(guestCount) || guestCount <= 0) {
+    return '예약 인원 정보가 올바르지 않습니다. 검색 조건을 다시 확인해 주세요.';
+  }
+  if (!roomType.matchesGuestCount) {
+    return `${roomType.baseCapacity}~${roomType.maxCapacity}명으로 변경해야 예약 가능합니다.`;
+  }
+  if (roomType.availableRoomCount <= 0 || roomType.availabilityCategory === 'SOLD_OUT') {
+    return '현재 선택한 일정에는 예약 가능한 객실이 없습니다.';
+  }
+  return null;
+}
+
 export function GuestReservationRequestSection({
   accommodationName,
   roomType,
@@ -49,6 +65,7 @@ export function GuestReservationRequestSection({
       roomType.availableRoomCount > 0 &&
       roomType.availabilityCategory !== 'SOLD_OUT'
   );
+  const blockingReason = getReservationBlockingReason(roomType, guestCount);
 
   return (
     <section className="reservation-request-page">
@@ -65,7 +82,7 @@ export function GuestReservationRequestSection({
               <div className="reservation-request-guidance">
                 <strong>현재 선택한 인원으로는 예약 가능한 객실이 없습니다.</strong>
                 <p>
-                  {roomType.baseCapacity}-{roomType.maxCapacity}명으로 변경하면 예약 가능한 객실을 찾을 수
+                  {roomType.baseCapacity}~{roomType.maxCapacity}명으로 변경하면 예약 가능한 객실을 찾을 수
                   있어요.
                 </p>
                 <div className="action-row">
@@ -109,8 +126,11 @@ export function GuestReservationRequestSection({
             <p className="detail-line">기본요금 {formatCurrency(roomType.basePrice)}</p>
             <p className="detail-line">체크인 미리보기 요금 {formatCurrency(roomType.previewPrice)}</p>
             <p className="detail-line">
-              정원 {roomType.baseCapacity}명- {roomType.maxCapacity}명
+              정원 {roomType.baseCapacity}명 - {roomType.maxCapacity}명
             </p>
+            {!canSubmitReservation && blockingReason ? (
+              <p className="detail-line reservation-request-blocking-text">{blockingReason}</p>
+            ) : null}
             <button type="button" onClick={onSubmit} disabled={!canSubmitReservation || creatingReservation}>
               {creatingReservation ? '예약 요청 중...' : '예약 요청'}
             </button>

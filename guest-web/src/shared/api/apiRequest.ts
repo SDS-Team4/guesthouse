@@ -10,6 +10,9 @@ export type ApiRequestError = Error & {
   code?: string;
 };
 
+const GUEST_CSRF_COOKIE_NAME = 'GUEST_API_CSRF';
+const CSRF_FAILURE_MESSAGE = 'CSRF token validation failed.';
+
 function readCsrfTokenFromCookie() {
   if (typeof document === 'undefined') {
     return null;
@@ -17,7 +20,7 @@ function readCsrfTokenFromCookie() {
   const csrfCookie = document.cookie
     .split(';')
     .map((entry) => entry.trim())
-    .find((entry) => entry.endsWith('_CSRF') || entry.includes('_CSRF='));
+    .find((entry) => entry.startsWith(`${GUEST_CSRF_COOKIE_NAME}=`));
 
   if (!csrfCookie) {
     return null;
@@ -44,18 +47,46 @@ function buildHeaders(init?: RequestInit) {
   return headers;
 }
 
+async function readEnvelope<T>(response: Response): Promise<ApiEnvelope<T> | null> {
+  try {
+    return (await response.json()) as ApiEnvelope<T>;
+  } catch {
+    return null;
+  }
+}
+
+function isCsrfFailure<T>(response: Response, envelope: ApiEnvelope<T> | null, init?: RequestInit) {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    return false;
+  }
+  return response.status === 403 && envelope?.error?.message === CSRF_FAILURE_MESSAGE;
+}
+
+async function refreshGuestCsrfCookie() {
+  await fetch('/api/v1/auth/me', {
+    method: 'GET',
+    credentials: 'include'
+  });
+}
+
 export async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, {
+  let response = await fetch(input, {
     ...init,
     credentials: 'include',
     headers: buildHeaders(init)
   });
 
-  let envelope: ApiEnvelope<T> | null = null;
-  try {
-    envelope = (await response.json()) as ApiEnvelope<T>;
-  } catch {
-    envelope = null;
+  let envelope = await readEnvelope<T>(response);
+
+  if (isCsrfFailure(response, envelope, init)) {
+    await refreshGuestCsrfCookie();
+    response = await fetch(input, {
+      ...init,
+      credentials: 'include',
+      headers: buildHeaders(init)
+    });
+    envelope = await readEnvelope<T>(response);
   }
 
   if (!response.ok || !envelope?.success) {

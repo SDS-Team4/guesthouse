@@ -1358,8 +1358,8 @@ button:disabled {
 
 .search-home-copy h1 {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3.5rem);
-  line-height: 1.02;
+  font-size: clamp(1.9rem, 3.7vw, 3.2rem);
+  line-height: 1.08;
   letter-spacing: -0.03em;
   color: #fffaf4;
 }

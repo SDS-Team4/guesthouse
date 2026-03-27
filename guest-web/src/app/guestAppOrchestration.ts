@@ -223,9 +223,11 @@ export async function submitGuestReservationTask(args: {
       status: created.status
     });
     setPendingReservationIntent(null);
-    await reloadReservations();
-    await reloadReservationDetail(created.reservationId, false);
     setCurrentPage('reservation-complete');
+    await Promise.allSettled([
+      reloadReservations(),
+      reloadReservationDetail(created.reservationId, false)
+    ]);
     setBanner({ tone: 'success', text: '예약 요청이 접수되었습니다.' });
   } catch (error) {
     setBanner({ tone: 'error', text: getErrorMessage(error) });

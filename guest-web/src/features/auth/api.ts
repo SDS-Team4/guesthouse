@@ -19,6 +19,13 @@ export function loginGuest(loginId: string, password: string) {
   return apiRequest<AuthenticatedUser>('/api/v1/auth/login', {
     method: 'POST',
     body: JSON.stringify({ loginId, password })
+  }).then(async (authenticatedUser) => {
+    try {
+      await apiRequest<AuthenticatedUser>('/api/v1/auth/me', { method: 'GET' });
+    } catch {
+      // Keep the successful login result even if the follow-up session refresh fails.
+    }
+    return authenticatedUser;
   });
 }
 
