@@ -705,3 +705,301 @@
 - Validation target:
   `pnpm --filter guest-web exec tsc --noEmit`,
   `:guest-api:test --tests com.guesthouse.guestapi.accommodation.GuestAccommodationControllerWebTest`.
+
+## Next Milestone Draft (2026-03-26 / guest UI-UX polish phase)
+
+- Scope in:
+  a guest-only presentation and usability refinement pass after the smoke-level flow integration is complete.
+- Traceability:
+  `REQ-F-001 ~ REQ-F-075`,
+  `REQ-NF-001`,
+  `REQ-NF-002`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Working assumption:
+  guest functional flow is sufficiently connected for now,
+  so the next pass should optimize readability, visual hierarchy, information density, and page-to-page consistency before starting the same treatment on `ops-web`.
+- Primary goals:
+  1. establish a stronger visual system for guest pages:
+     header, hero, cards, tabs, buttons, empty states, section dividers, and status emphasis,
+  2. improve accommodation list readability:
+     clearer grouping, stronger distinction for mismatch / sold-out sections, more consistent price and metadata hierarchy,
+  3. improve accommodation detail readability:
+     room-type card hierarchy, action placement, calendar presentation, and scroll ergonomics,
+  4. improve mypage/account readability:
+     clearer navigation between profile / password / host-role-request / reservations,
+  5. remove lingering development-oriented visual noise where it does not help real service UX.
+- Explicit scope out:
+  no recovery API implementation,
+  no payment/OTA/mobile scope,
+  no guest/ops architecture redesign,
+  no large reservation-domain redesign.
+- Proposed execution order:
+  1. define the guest visual direction and spacing/typography rules,
+  2. polish the guest landing/search page,
+  3. polish accommodation results cards and section emphasis,
+  4. polish accommodation detail and calendar UX,
+  5. polish mypage/account/reservation pages,
+  6. run a final consistency pass across the whole guest app.
+- Acceptance criteria:
+  - each major guest page has a clear visual hierarchy with no obviously placeholder-level layout,
+  - accommodation search results are easy to scan and status sections are visually unambiguous,
+  - accommodation detail can be read and acted on without layout confusion,
+  - account and reservation pages feel like one coherent product rather than separate smoke screens,
+  - no regression in guest search / detail / reservation / account flow.
+- Validation commands:
+  `pnpm --filter guest-web exec tsc --noEmit`
+- Risk notes:
+  - visual polish can easily sprawl across too many pages at once,
+  - draft parity and service-grade UX are not always identical, so UI-first decisions should now favor actual usability over literal draft mimicry,
+  - repeated one-off styling patches may increase CSS inconsistency unless each pass also normalizes shared rules.
+
+## Latest Implementation Note (2026-03-26 / guest detail and calendar polish)
+
+- Scope completed in this pass:
+  the next `guest UI-UX polish` step after search/results, focused on accommodation detail readability and calendar usability.
+- Traceability:
+  `REQ-F-036 ~ REQ-F-049`,
+  `REQ-NF-001`,
+  `REQ-NF-002`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Implemented:
+  redesign the accommodation detail hero, room-type cards, and calendar modal to match the stronger visual direction already established on the guest landing and results pages.
+- UX consequence:
+  accommodation detail now reads as a clearer compare-and-act screen,
+  while the calendar behaves more like a dedicated inventory tool than a smoke placeholder.
+- In scope details:
+  stronger hero hierarchy,
+  more explicit room-type comparison cards,
+  reduced visual noise in the calendar,
+  consistent status/button/card density rules carried into the detail view.
+- Next intended pass:
+  `mypage/account/reservation consistency`.
+- Validation target:
+  `pnpm --filter guest-web exec tsc --noEmit`.
+
+## Latest Implementation Note (2026-03-26 / guest visual theme reset)
+
+- Scope in for this pass:
+  a guest-only visual-direction reset within the active `guest UI-UX polish` phase.
+- Traceability:
+  `REQ-F-036 ~ REQ-F-049`,
+  `REQ-F-050 ~ REQ-F-069`,
+  `REQ-NF-001`,
+  `REQ-NF-002`.
+- Problem statement:
+  the current guest UI became too black/charcoal-heavy during the earlier structure and readability passes,
+  and no longer matches the intended guesthouse mood.
+- New direction:
+  shift from near-monochrome emphasis toward a warmer guesthouse tone:
+  cream / sand surfaces,
+  terracotta and amber accents,
+  softened dark text,
+  stronger hospitality mood without losing scanability.
+- In scope:
+  shared guest color tokens,
+  header tone,
+  hero surfaces,
+  cards,
+  status pills,
+  buttons,
+  list/detail visual hierarchy.
+- Out of scope:
+  API/schema changes,
+  recovery flow implementation,
+  ops-web styling,
+  large component rewrites.
+- Acceptance target:
+  the guest app should feel noticeably less monochrome,
+  more welcoming,
+  and more consistent with a guesthouse/hospitality product while preserving current readability.
+
+## Latest Implementation Note (2026-03-27 / guest reservation-request mismatch guidance)
+
+- Scope in for this pass:
+  a guest-only reservation-request UX refinement when a room type can be opened from detail but cannot actually be requested with the current search guest count.
+- Traceability:
+  `REQ-F-044 ~ REQ-F-049`,
+  `REQ-F-050 ~ REQ-F-061`,
+  `REQ-NF-001`,
+  `REQ-NF-002`.
+- Implemented direction:
+  keep the user flow open from accommodation detail into reservation-request,
+  but replace silent dead-end behavior with an explicit explanation and a CTA back to search when the current guest count does not fit the selected room type.
+- Acceptance target:
+  the user should understand why the request cannot proceed,
+  see the suggested guest-count range,
+  and be able to return to search without confusion.
+
+## Latest Implementation Note (2026-03-27 / session login-failure lockout hardening)
+
+- Scope in for this pass:
+  a shared auth hardening update for session-based login protection using the existing `user_login_security` table.
+- Traceability:
+  `REQ-F-001 ~ REQ-F-009`,
+  `REQ-SEC-001 ~ REQ-SEC-008`,
+  `REQ-NF-003`.
+- Rule to implement:
+  if the same account records `5` or more failed login attempts within `5` minutes,
+  the account becomes locked until `5` minutes after the last failed attempt.
+- Implementation direction:
+  reuse the existing `failed_login_count`, `last_failed_at`, and `locked_until` columns,
+  calculate the rolling 5-minute window in the shared auth write path,
+  and keep the lockout behavior common for guest and ops login flows.
+- Acceptance target:
+  failed attempts older than the rolling window do not keep accumulating forever,
+  the 5th in-window failure sets `locked_until`,
+  and successful login still clears the failure state.
+
+## Latest Implementation Note (2026-03-27 / auth yaml enforcement wiring)
+
+- Scope in for this pass:
+  wire the already-declared `guest-api` auth/session yaml settings into real runtime behavior without widening into recovery implementation.
+- Traceability:
+  `REQ-F-001 ~ REQ-F-018`,
+  `REQ-SEC-001 ~ REQ-SEC-008`,
+  `REQ-NF-003`.
+- Planned runtime behavior:
+  apply `auth.rate-limit.login` and `auth.rate-limit.signup` as actual per-IP and global request throttles,
+  apply `auth.session.cookie-secure` to the session cookie serializer,
+  and apply guest-session CSRF token issuance/validation using the configured header name.
+- Scope out:
+  no recovery endpoint implementation,
+  no JWT introduction,
+  no guest/ops auth-flow redesign,
+  no schema change beyond the already-implemented login-failure lockout reuse.
+- Safety note:
+  CSRF enforcement must be added in a way that does not silently break the current guest-web flow,
+  so token issuance and frontend header propagation are part of the same pass.
+- Acceptance target:
+  login and signup are throttled according to configured yaml limits,
+  secure-cookie flag follows yaml,
+  authenticated unsafe guest requests reject missing/invalid CSRF headers when CSRF is enabled,
+  and current guest UI flows continue to submit successfully with the propagated token header.
+
+## Latest Implementation Note (2026-03-27 / guest signup validation guidance)
+
+- Scope in for this pass:
+  a narrow guest-web auth UX hardening step so signup field requirements and duplicate-contact failures are visible to the user before or at submission time.
+- Traceability:
+  `REQ-F-010 ~ REQ-F-018`,
+  `REQ-SEC-001 ~ REQ-SEC-008`,
+  `REQ-NF-001`.
+- Current backend source of truth:
+  signup already validates login-id length, password length, password confirmation, required-term agreement, and duplicate `loginId` / `email` / `phone`.
+- Planned UX refinement:
+  add field-level signup guidance and inline error presentation in guest-web,
+  keep validation aligned to the current backend rules,
+  and map backend duplicate/conflict responses back onto the relevant signup fields instead of showing only a generic banner.
+- Scope out:
+  no recovery-flow implementation,
+  no auth-flow redesign,
+  no speculative backend constraint expansion beyond currently implemented signup rules.
+- Acceptance target:
+  users can tell why signup cannot proceed,
+  required/format/duplicate issues are shown near the related field,
+  and successful signup still reaches the existing backend endpoint without regression.
+
+## Latest Implementation Note (2026-03-27 / guest auth feedback and in-app history)
+
+- Scope in for this pass:
+  a narrow guest-web UX hardening step for login failure guidance and browser back/refresh continuity within the guest SPA.
+- Traceability:
+  `REQ-F-001 ~ REQ-F-018`,
+  `REQ-NF-001`,
+  `REQ-NF-002`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Planned UX refinement:
+  show inline login guidance when credentials are invalid or the account is temporarily locked,
+  and persist the current guest page in browser history so internal back-navigation and refresh keep the user inside the guest flow rather than collapsing to the default landing page.
+- Scope out:
+  no backend auth-contract redesign,
+  no JWT/router library migration,
+  no recovery implementation.
+- Acceptance target:
+  login failures are understandable without relying only on a top banner,
+  browser back returns to the prior in-app guest page when that page was opened inside the SPA,
+  and refresh restores the current guest page instead of always resetting to the main search page.
+
+## Latest Implementation Note (2026-03-27 / guest signup required-contact and results refresh restore)
+
+- Scope in for this pass:
+  a narrow guest auth/browse alignment step to make signup email and phone required in both guest-web and guest-api,
+  and to restore the accommodation-results page after browser refresh.
+- Traceability:
+  `REQ-F-010 ~ REQ-F-018`,
+  `REQ-F-036 ~ REQ-F-043`,
+  `REQ-NF-001`,
+  `REQ-NF-002`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Planned behavior:
+  signup now requires both email and phone as first-class required fields,
+  field-level guidance must reflect those rules,
+  duplicate email/phone conflicts must continue to map back onto the related fields,
+  and `accommodations` should rehydrate from the current search criteria on refresh rather than dropping back to the empty default state.
+- Scope out:
+  no account-profile required-field redesign,
+  no recovery implementation,
+  no search ranking/DTO redesign.
+- Acceptance target:
+  signup cannot proceed without email and phone,
+  guest-api rejects missing contact fields consistently,
+  guest-web shows required-field guidance inline,
+  and refreshing the results page reloads the same search result set.
+
+## Latest Implementation Note (2026-03-27 / guest signup login-id availability check)
+
+- Scope in for this pass:
+  a narrow guest auth UX refinement so signup can check `loginId` availability before full form submission.
+- Traceability:
+  `REQ-F-010 ~ REQ-F-018`,
+  `REQ-NF-001`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Planned behavior:
+  keep the existing duplicate-login validation during real signup submission,
+  and add a lightweight guest read API plus a signup `중복확인` action that checks the current `loginId` against the same backend source of truth.
+- Scope out:
+  no signup-flow redesign,
+  no speculative username policy expansion beyond the current `4~50` character rule,
+  no recovery implementation.
+- Acceptance target:
+  signup still rejects duplicate login IDs on submission,
+  guest-web can proactively check a typed login ID,
+  and changing the login ID clears stale availability results until the user checks again.
+
+## Latest Implementation Note (2026-03-27 / guest signup duplicate precheck aggregation)
+
+- Scope in for this pass:
+  a narrow guest auth UX refinement so signup can surface duplicate `loginId`, `email`, and `phone` together on submit instead of stopping one-by-one.
+- Traceability:
+  `REQ-F-010 ~ REQ-F-018`,
+  `REQ-NF-001`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Planned behavior:
+  keep the existing final duplicate protection inside the real signup transaction,
+  and add a lightweight guest precheck API that can inspect the currently typed signup identity fields and report duplicate usage in one response.
+- UX consequence:
+  even when some required fields are still missing,
+  pressing the signup button can still show duplicate guidance for already-entered `loginId`, `email`, and `phone`,
+  and duplicate fields should be rendered together rather than sequentially.
+- Scope out:
+  no recovery implementation,
+  no speculative contact-format redesign beyond the current backend constraints.
+- Acceptance target:
+  signup submit can show local validation errors and duplicate-usage errors together,
+  duplicate `loginId` / `email` / `phone` appear in one pass,
+  and the final signup endpoint still remains the source of truth for transactional duplicate rejection.
+
+## Latest Implementation Note (2026-03-27 / guest signup success response minimization)
+
+- Scope in for this pass:
+  a narrow guest auth hardening step to reduce post-signup response exposure while keeping the existing UI flow unchanged.
+- Traceability:
+  `REQ-F-010 ~ REQ-F-018`,
+  `REQ-SEC-001 ~ REQ-SEC-008`.
+- Planned behavior:
+  keep the signup transaction and validation semantics unchanged,
+  but stop returning unnecessary created-user detail fields to the public signup caller when the guest-web only needs completion confirmation.
+- Acceptance target:
+  successful signup still transitions the user back to login in guest-web,
+  `중복확인` success remains visible in the form,
+  and signup success responses expose only the minimum data needed by the current product flow.
