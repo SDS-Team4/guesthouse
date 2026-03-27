@@ -2,6 +2,7 @@ package com.guesthouse.guestapi.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.guesthouse.guestapi.auth.api.SignupRequest;
+import com.guesthouse.guestapi.auth.api.SignupFieldAvailabilityResponse;
 import com.guesthouse.guestapi.auth.service.GuestSignupResult;
 import com.guesthouse.guestapi.auth.service.GuestSignupService;
 import com.guesthouse.shared.auth.config.AuthWebMvcConfigurer;
@@ -139,9 +140,11 @@ class GuestAuthControllerWebTest {
     void logoutInvalidatesSessionAndSubsequentMeIsUnauthorized() throws Exception {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute("SESSION_USER", new SessionUser(101L, "guest-demo", "Guest Demo", UserRole.GUEST));
+        session.setAttribute("SESSION_CSRF_TOKEN", "csrf-token");
 
         mockMvc.perform(
                         post("/api/v1/auth/logout")
+                                .header("X-CSRF-Token", "csrf-token")
                                 .session(session)
                 )
                 .andExpect(status().isOk())
@@ -188,10 +191,43 @@ class GuestAuthControllerWebTest {
                                 )))
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.userId").value(104))
-                .andExpect(jsonPath("$.data.loginId").value("new.guest"))
-                .andExpect(jsonPath("$.data.role").value("GUEST"))
-                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+                .andExpect(jsonPath("$.data.registered").value(true));
+    }
+
+    @Test
+    void signupLoginIdAvailabilityReturnsAvailableState() throws Exception {
+        when(guestSignupService.isLoginIdAvailable("guest-ready")).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/auth/signup-login-id-availability").param("loginId", "guest-ready"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.loginId").value("guest-ready"))
+                .andExpect(jsonPath("$.data.available").value(true));
+    }
+
+    @Test
+    void signupFieldAvailabilityReturnsAllDuplicateStatesTogether() throws Exception {
+        when(guestSignupService.checkSignupFieldAvailability("guest-ready", "guest@example.com", "01012345678"))
+                .thenReturn(new SignupFieldAvailabilityResponse(
+                        "guest-ready",
+                        false,
+                        "guest@example.com",
+                        false,
+                        "01012345678",
+                        true
+                ));
+
+        mockMvc.perform(
+                        get("/api/v1/auth/signup-field-availability")
+                                .param("loginId", "guest-ready")
+                                .param("email", "guest@example.com")
+                                .param("phone", "01012345678")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.loginIdAvailable").value(false))
+                .andExpect(jsonPath("$.data.emailAvailable").value(false))
+                .andExpect(jsonPath("$.data.phoneAvailable").value(true));
     }
 
     private record LoginPayload(String loginId, String password) {

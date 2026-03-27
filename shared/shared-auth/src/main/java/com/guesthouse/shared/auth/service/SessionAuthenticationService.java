@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -22,15 +23,18 @@ public class SessionAuthenticationService {
     private final UserQueryMapper userQueryMapper;
     private final UserLoginSecurityMapper userLoginSecurityMapper;
     private final PasswordEncoder passwordEncoder;
+    private final Clock clock;
 
     public SessionAuthenticationService(
             UserQueryMapper userQueryMapper,
             UserLoginSecurityMapper userLoginSecurityMapper,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            Clock clock
     ) {
         this.userQueryMapper = userQueryMapper;
         this.userLoginSecurityMapper = userLoginSecurityMapper;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
     @Transactional
@@ -47,7 +51,7 @@ public class SessionAuthenticationService {
         userLoginSecurityMapper.insertIfAbsent(authRecord.getUserId());
         authRecord = userQueryMapper.findAuthUserByLoginId(loginCommand.loginId());
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         if (authRecord.getLockedUntil() != null && authRecord.getLockedUntil().isAfter(now)) {
             throw new AppException(
                     ErrorCode.ACCOUNT_LOCKED,

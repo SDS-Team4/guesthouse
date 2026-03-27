@@ -19,8 +19,21 @@
     <update id="registerFailedLogin">
         UPDATE user_login_security
         SET
-            failed_login_count = failed_login_count + 1,
-            last_failed_at = #{failedAt}
+            failed_login_count = CASE
+                WHEN last_failed_at IS NULL
+                    OR last_failed_at &lt; DATE_SUB(#{failedAt}, INTERVAL 5 MINUTE)
+                    THEN 1
+                ELSE failed_login_count + 1
+            END,
+            last_failed_at = #{failedAt},
+            locked_until = CASE
+                WHEN last_failed_at IS NULL
+                    OR last_failed_at &lt; DATE_SUB(#{failedAt}, INTERVAL 5 MINUTE)
+                    THEN NULL
+                WHEN failed_login_count + 1 >= 5
+                    THEN DATE_ADD(#{failedAt}, INTERVAL 5 MINUTE)
+                ELSE NULL
+            END
         WHERE user_id = #{userId}
     </update>
 

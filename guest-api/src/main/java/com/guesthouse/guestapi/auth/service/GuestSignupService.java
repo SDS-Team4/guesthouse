@@ -1,6 +1,7 @@
 package com.guesthouse.guestapi.auth.service;
 
 import com.guesthouse.guestapi.auth.api.SignupRequest;
+import com.guesthouse.guestapi.auth.api.SignupFieldAvailabilityResponse;
 import com.guesthouse.shared.db.auth.mapper.UserLoginSecurityMapper;
 import com.guesthouse.shared.db.term.mapper.TermQueryMapper;
 import com.guesthouse.shared.db.term.mapper.UserTermAgreementCommandMapper;
@@ -61,14 +62,45 @@ public class GuestSignupService {
         return termQueryMapper.findPublishedRequiredTerms();
     }
 
+    public boolean isLoginIdAvailable(String loginId) {
+        String normalizedLoginId = normalizeRequired(loginId, "Login ID is required.");
+        if (normalizedLoginId.length() < 4 || normalizedLoginId.length() > 50) {
+            throw new AppException(
+                    ErrorCode.INVALID_REQUEST,
+                    HttpStatus.BAD_REQUEST,
+                    "Login ID must be between 4 and 50 characters."
+            );
+        }
+        return userAccountQueryMapper.findUserIdByLoginId(normalizedLoginId) == null;
+    }
+
+    public SignupFieldAvailabilityResponse checkSignupFieldAvailability(
+            String loginId,
+            String email,
+            String phone
+    ) {
+        String normalizedLoginId = normalizeOptional(loginId);
+        String normalizedEmail = normalizeOptional(email);
+        String normalizedPhone = normalizeOptional(phone);
+
+        return new SignupFieldAvailabilityResponse(
+                normalizedLoginId,
+                normalizedLoginId == null ? null : userAccountQueryMapper.findUserIdByLoginId(normalizedLoginId) == null,
+                normalizedEmail,
+                normalizedEmail == null ? null : userAccountQueryMapper.findUserIdByEmail(normalizedEmail) == null,
+                normalizedPhone,
+                normalizedPhone == null ? null : userAccountQueryMapper.findUserIdByPhone(normalizedPhone) == null
+        );
+    }
+
     @Transactional
     public GuestSignupResult signup(SignupRequest request) {
         String loginId = normalizeRequired(request.loginId(), "Login ID is required.");
         String password = request.password();
         String passwordConfirm = request.passwordConfirm();
         String name = normalizeRequired(request.name(), "Name is required.");
-        String email = normalizeOptional(request.email());
-        String phone = normalizeOptional(request.phone());
+        String email = normalizeRequired(request.email(), "Email is required.");
+        String phone = normalizeRequired(request.phone(), "Phone number is required.");
         List<PublishedRequiredTermRecord> requiredTerms = termQueryMapper.findPublishedRequiredTerms();
 
         if (!password.equals(passwordConfirm)) {

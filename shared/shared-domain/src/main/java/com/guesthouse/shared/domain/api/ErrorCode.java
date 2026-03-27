@@ -8,6 +8,7 @@ public enum ErrorCode {
     DUPLICATE_LOGIN_ID("DUPLICATE_LOGIN_ID", "Login ID is already in use."),
     DUPLICATE_EMAIL("DUPLICATE_EMAIL", "Email is already in use."),
     DUPLICATE_PHONE("DUPLICATE_PHONE", "Phone number is already in use."),
+    RATE_LIMITED("RATE_LIMITED", "Too many requests. Please try again later."),
     HOST_ROLE_REQUEST_NOT_ALLOWED("HOST_ROLE_REQUEST_NOT_ALLOWED", "Host role request is not allowed."),
     HOST_ROLE_REQUEST_ALREADY_PENDING("HOST_ROLE_REQUEST_ALREADY_PENDING", "A host role request is already pending."),
     HOST_ROLE_REQUEST_ALREADY_REVIEWED("HOST_ROLE_REQUEST_ALREADY_REVIEWED", "Host role request has already been reviewed."),

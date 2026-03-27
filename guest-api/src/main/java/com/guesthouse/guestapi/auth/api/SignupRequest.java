@@ -20,9 +20,11 @@ public record SignupRequest(
         @NotBlank
         @Size(max = 50)
         String name,
+        @NotBlank
         @Email
         @Size(max = 100)
         String email,
+        @NotBlank
         @Size(max = 20)
         String phone,
         @NotEmpty

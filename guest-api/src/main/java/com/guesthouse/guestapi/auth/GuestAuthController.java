@@ -3,6 +3,8 @@ package com.guesthouse.guestapi.auth;
 import com.guesthouse.shared.auth.api.AuthenticatedUserResponse;
 import com.guesthouse.shared.auth.api.LoginRequest;
 import com.guesthouse.shared.auth.api.LogoutResponse;
+import com.guesthouse.guestapi.auth.api.LoginIdAvailabilityResponse;
+import com.guesthouse.guestapi.auth.api.SignupFieldAvailabilityResponse;
 import com.guesthouse.shared.auth.service.LoginCommand;
 import com.guesthouse.shared.auth.service.SessionAuthenticationService;
 import com.guesthouse.guestapi.auth.api.GuestSignupResponse;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.EnumSet;
@@ -59,9 +62,8 @@ public class GuestAuthController {
 
     @PostMapping("/signup")
     public ApiResponse<GuestSignupResponse> signup(@Valid @RequestBody SignupRequest signupRequest) {
-        return ApiResponse.success(
-                GuestSignupResponse.from(guestSignupService.signup(signupRequest))
-        );
+        guestSignupService.signup(signupRequest);
+        return ApiResponse.success(GuestSignupResponse.fromRegistered());
     }
 
     @GetMapping("/signup-terms")
@@ -71,6 +73,29 @@ public class GuestAuthController {
                         .stream()
                         .map(SignupTermResponse::from)
                         .toList()
+        );
+    }
+
+    @GetMapping("/signup-login-id-availability")
+    public ApiResponse<LoginIdAvailabilityResponse> checkSignupLoginIdAvailability(
+            @RequestParam String loginId
+    ) {
+        return ApiResponse.success(
+                new LoginIdAvailabilityResponse(
+                        loginId == null ? null : loginId.trim(),
+                        guestSignupService.isLoginIdAvailable(loginId)
+                )
+        );
+    }
+
+    @GetMapping("/signup-field-availability")
+    public ApiResponse<SignupFieldAvailabilityResponse> checkSignupFieldAvailability(
+            @RequestParam(required = false) String loginId,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String phone
+    ) {
+        return ApiResponse.success(
+                guestSignupService.checkSignupFieldAvailability(loginId, email, phone)
         );
     }
 

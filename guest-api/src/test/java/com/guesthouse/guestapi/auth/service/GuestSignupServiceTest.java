@@ -122,6 +122,44 @@ class GuestSignupServiceTest {
         verify(userAccountCommandMapper, never()).insertUser(any(UserInsertParam.class));
     }
 
+    @Test
+    void signupRejectsBlankEmail() {
+        AppException exception = assertThrows(
+                AppException.class,
+                () -> guestSignupService.signup(new SignupRequest(
+                        "new.guest",
+                        "guestpass123!",
+                        "guestpass123!",
+                        "New Guest",
+                        "   ",
+                        "010-1234-5678",
+                        List.of(1301L, 1302L)
+                ))
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        assertEquals(ErrorCode.INVALID_REQUEST, exception.getErrorCode());
+    }
+
+    @Test
+    void signupRejectsBlankPhone() {
+        AppException exception = assertThrows(
+                AppException.class,
+                () -> guestSignupService.signup(new SignupRequest(
+                        "new.guest",
+                        "guestpass123!",
+                        "guestpass123!",
+                        "New Guest",
+                        "new.guest@example.com",
+                        "   ",
+                        List.of(1301L, 1302L)
+                ))
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        assertEquals(ErrorCode.INVALID_REQUEST, exception.getErrorCode());
+    }
+
     private PublishedRequiredTermRecord requiredServiceTerm() {
         PublishedRequiredTermRecord record = new PublishedRequiredTermRecord();
         record.setTermId(1301L);

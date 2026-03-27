@@ -15,7 +15,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.EnumSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,6 +33,10 @@ import static org.mockito.Mockito.when;
 class SessionAuthenticationServiceTest {
 
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+    private static final Clock FIXED_CLOCK = Clock.fixed(
+            Instant.parse("2026-03-27T01:00:00Z"),
+            ZoneId.of("Asia/Seoul")
+    );
 
     @Mock
     private UserQueryMapper userQueryMapper;
@@ -44,7 +51,8 @@ class SessionAuthenticationServiceTest {
         sessionAuthenticationService = new SessionAuthenticationService(
                 userQueryMapper,
                 userLoginSecurityMapper,
-                PASSWORD_ENCODER
+                PASSWORD_ENCODER,
+                FIXED_CLOCK
         );
     }
 
@@ -91,7 +99,7 @@ class SessionAuthenticationServiceTest {
         UserAuthRecord authRecord = activeUser(
                 "guest-demo",
                 UserRole.GUEST,
-                LocalDateTime.now().plusMinutes(10)
+                LocalDateTime.now(FIXED_CLOCK).plusMinutes(10)
         );
         when(userQueryMapper.findAuthUserByLoginId("guest-demo"))
                 .thenReturn(authRecord)
@@ -109,6 +117,45 @@ class SessionAuthenticationServiceTest {
         verify(userLoginSecurityMapper).insertIfAbsent(101L);
         verify(userLoginSecurityMapper, times(0)).registerFailedLogin(eq(101L), any(LocalDateTime.class));
         verify(userLoginSecurityMapper, times(0)).registerSuccessfulLogin(eq(101L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void authenticateUsesClockTimeWhenRegisteringFailedLogin() {
+        UserAuthRecord authRecord = activeUser("guest-demo", UserRole.GUEST, null);
+        when(userQueryMapper.findAuthUserByLoginId("guest-demo"))
+                .thenReturn(authRecord)
+                .thenReturn(authRecord);
+
+        assertThrows(
+                AppException.class,
+                () -> sessionAuthenticationService.authenticate(
+                        new LoginCommand("guest-demo", "wrong-pass"),
+                        EnumSet.of(UserRole.GUEST)
+                )
+        );
+
+        verify(userLoginSecurityMapper).registerFailedLogin(
+                101L,
+                LocalDateTime.of(2026, 3, 27, 10, 0)
+        );
+    }
+
+    @Test
+    void authenticateUsesClockTimeWhenRegisteringSuccessfulLogin() {
+        UserAuthRecord authRecord = activeUser("guest-demo", UserRole.GUEST, null);
+        when(userQueryMapper.findAuthUserByLoginId("guest-demo"))
+                .thenReturn(authRecord)
+                .thenReturn(authRecord);
+
+        sessionAuthenticationService.authenticate(
+                new LoginCommand("guest-demo", "guestpass"),
+                EnumSet.of(UserRole.GUEST)
+        );
+
+        verify(userLoginSecurityMapper).registerSuccessfulLogin(
+                101L,
+                LocalDateTime.of(2026, 3, 27, 10, 0)
+        );
     }
 
     private UserAuthRecord activeUser(String loginId, UserRole role, LocalDateTime lockedUntil) {

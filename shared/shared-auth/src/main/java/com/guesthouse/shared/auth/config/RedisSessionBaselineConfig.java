@@ -13,10 +13,14 @@ import java.util.Locale;
 public class RedisSessionBaselineConfig {
 
     @Bean
-    public CookieSerializer cookieSerializer(AppRuntimeProperties appRuntimeProperties) {
+    public CookieSerializer cookieSerializer(
+            AppRuntimeProperties appRuntimeProperties,
+            AuthSessionProperties authSessionProperties
+    ) {
         DefaultCookieSerializer serializer = new DefaultCookieSerializer();
         serializer.setCookieName(buildCookieName(appRuntimeProperties.getRuntimeName()));
         serializer.setUseHttpOnlyCookie(true);
+        serializer.setUseSecureCookie(authSessionProperties.isCookieSecure());
         serializer.setSameSite("Lax");
         serializer.setCookiePath("/");
         return serializer;
