@@ -92,13 +92,13 @@ const pageSummaries: Record<GuestPage, { title: string; detail: string }> = {
     title: '호스트 권한 요청',
     detail: '호스트 권한 요청 상태를 확인하고 새 요청을 제출합니다.'
   },
-  'find-id': { title: '아이디 찾기', detail: '현재는 플레이스홀더만 제공되는 복구 화면입니다.' },
-  'find-password': { title: '비밀번호 찾기', detail: '현재는 플레이스홀더만 제공되는 복구 화면입니다.' },
-  search: { title: '메인 검색', detail: '체크인/체크아웃, 지역, 인원으로 숙소를 탐색합니다.' },
+  'find-id': { title: '아이디 찾기', detail: '현재는 플레이스홀더로만 제공되는 복구 화면입니다.' },
+  'find-password': { title: '비밀번호 찾기', detail: '현재는 플레이스홀더로만 제공되는 복구 화면입니다.' },
+  search: { title: '메인 검색', detail: '체크인, 체크아웃, 지역, 인원으로 숙소를 탐색합니다.' },
   accommodations: { title: '숙소 목록', detail: '검색 결과 숙소 목록을 확인하고 상세로 이동합니다.' },
   'accommodation-detail': { title: '숙소 상세', detail: '객실 타입과 캘린더를 보고 예약 요청으로 이동합니다.' },
   'reservation-request': { title: '예약 요청', detail: '선택한 객실 타입으로 예약을 접수합니다.' },
-  'reservation-complete': { title: '예약 완료', detail: '접수된 예약 요약을 확인하고 목록/상세로 이동합니다.' },
+  'reservation-complete': { title: '예약 완료', detail: '접수된 예약 요약을 확인하고 상세나 목록으로 이동합니다.' },
   'reservation-list': { title: '예약 목록', detail: '내 예약 이력을 목록으로 확인합니다.' },
   'reservation-detail': { title: '예약 상세', detail: '예약 상태, 숙박일, 취소 가능 여부를 확인합니다.' }
 };
@@ -137,10 +137,10 @@ export function GuestSidePanel({
   return (
     <aside className="workspace-sidebar">
       <section className="sidebar-card sidebar-card-accent">
-        <p className="sidebar-kicker">guest-web workspace</p>
-        <h1>UI-first guest flow</h1>
+        <p className="sidebar-kicker">guest-web 워크스페이스</p>
+        <h1>게스트 서비스 흐름 점검 패널</h1>
         <p className="muted">
-          좌측 패널은 draft의 참조용 구조를 유지하고, 우측에는 실제 서비스 화면만 남기도록 분리한 상태입니다.
+          좌측 패널은 현재 흐름과 상태를 빠르게 확인하는 용도이고, 우측 영역에는 실제 사용자 화면만 보이도록 분리해두었습니다.
         </p>
       </section>
 
@@ -224,7 +224,7 @@ export function GuestSidePanel({
           <p className="detail-line">
             숙소 {pendingReservationIntent.accommodationId}, 객실 타입 {pendingReservationIntent.roomTypeId}
           </p>
-          <p className="muted">로그인 후 같은 객실 타입으로 다시 진입하면 예약 요청을 이어갈 수 있습니다.</p>
+          <p className="muted">로그인 후 같은 객실 타입으로 다시 진입하면 예약 요청으로 이어집니다.</p>
         </section>
       ) : null}
 

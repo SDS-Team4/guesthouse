@@ -10,14 +10,45 @@ export type ApiRequestError = Error & {
   code?: string;
 };
 
+function readCsrfTokenFromCookie() {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const csrfCookie = document.cookie
+    .split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.endsWith('_CSRF') || entry.includes('_CSRF='));
+
+  if (!csrfCookie) {
+    return null;
+  }
+
+  const separatorIndex = csrfCookie.indexOf('=');
+  if (separatorIndex < 0) {
+    return null;
+  }
+  return decodeURIComponent(csrfCookie.slice(separatorIndex + 1));
+}
+
+function buildHeaders(init?: RequestInit) {
+  const headers = new Headers(init?.headers ?? {});
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const csrfToken = readCsrfTokenFromCookie();
+  if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    headers.set('X-CSRF-Token', csrfToken);
+  }
+  return headers;
+}
+
 export async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
   const response = await fetch(input, {
+    ...init,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {})
-    },
-    ...init
+    headers: buildHeaders(init)
   });
 
   let envelope: ApiEnvelope<T> | null = null;

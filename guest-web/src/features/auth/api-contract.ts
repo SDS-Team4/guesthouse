@@ -21,12 +21,19 @@ export type GuestSignupRequestContract = {
 };
 
 export type GuestSignupResponseContract = {
-  userId: number;
+  registered: true;
+};
+
+export type SignupLoginIdAvailabilityContract = {
   loginId: string;
-  name: string;
+  available: boolean;
+};
+
+export type SignupFieldAvailabilityContract = {
+  loginId: string | null;
+  loginIdAvailable: boolean | null;
   email: string | null;
+  emailAvailable: boolean | null;
   phone: string | null;
-  role: 'GUEST';
-  status: 'ACTIVE';
-  createdAt: string;
+  phoneAvailable: boolean | null;
 };

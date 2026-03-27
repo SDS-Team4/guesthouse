@@ -1,3 +1,5 @@
+type AccommodationAvailabilityCategory = 'AVAILABLE' | 'CONDITION_MISMATCH' | 'SOLD_OUT';
+
 type SelectedReservationRoomType = {
   roomTypeId: number;
   roomTypeName: string;
@@ -6,6 +8,8 @@ type SelectedReservationRoomType = {
   basePrice: number;
   previewPrice: number;
   availableRoomCount: number;
+  matchesGuestCount: boolean;
+  availabilityCategory: AccommodationAvailabilityCategory;
 };
 
 type GuestReservationRequestSectionProps = {
@@ -16,6 +20,7 @@ type GuestReservationRequestSectionProps = {
   checkOutDate: string;
   creatingReservation: boolean;
   onSubmit: () => void;
+  onBackToSearch: () => void;
 };
 
 const currencyFormatter = new Intl.NumberFormat('ko-KR');
@@ -31,8 +36,20 @@ export function GuestReservationRequestSection({
   checkInDate,
   checkOutDate,
   creatingReservation,
-  onSubmit
+  onSubmit,
+  onBackToSearch
 }: GuestReservationRequestSectionProps) {
+  const guestCount = Number(searchGuestCount);
+  const showGuestCountGuidance = Boolean(
+    roomType && Number.isFinite(guestCount) && !roomType.matchesGuestCount
+  );
+  const canSubmitReservation = Boolean(
+    roomType &&
+      roomType.matchesGuestCount &&
+      roomType.availableRoomCount > 0 &&
+      roomType.availabilityCategory !== 'SOLD_OUT'
+  );
+
   return (
     <section className="reservation-request-page">
       {!roomType ? (
@@ -43,6 +60,22 @@ export function GuestReservationRequestSection({
         <div className="reservation-request-grid">
           <section className="detail-card reservation-request-card">
             <h2>예약 요청</h2>
+
+            {showGuestCountGuidance ? (
+              <div className="reservation-request-guidance">
+                <strong>현재 선택한 인원으로는 예약 가능한 객실이 없습니다.</strong>
+                <p>
+                  {roomType.baseCapacity}-{roomType.maxCapacity}명으로 변경하면 예약 가능한 객실을 찾을 수
+                  있어요.
+                </p>
+                <div className="action-row">
+                  <button type="button" className="secondary-button" onClick={onBackToSearch}>
+                    인원 다시 검색하기
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             <div className="definition-list reservation-definition-list">
               <div>
                 <dt>숙소명</dt>
@@ -76,9 +109,9 @@ export function GuestReservationRequestSection({
             <p className="detail-line">기본요금 {formatCurrency(roomType.basePrice)}</p>
             <p className="detail-line">체크인 미리보기 요금 {formatCurrency(roomType.previewPrice)}</p>
             <p className="detail-line">
-              정원 {roomType.baseCapacity}명 - {roomType.maxCapacity}명
+              정원 {roomType.baseCapacity}명- {roomType.maxCapacity}명
             </p>
-            <button type="button" onClick={onSubmit} disabled={creatingReservation}>
+            <button type="button" onClick={onSubmit} disabled={!canSubmitReservation || creatingReservation}>
               {creatingReservation ? '예약 요청 중...' : '예약 요청'}
             </button>
           </section>

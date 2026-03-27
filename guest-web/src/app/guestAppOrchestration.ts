@@ -65,13 +65,11 @@ export async function loadSignupTermsTask(args: {
 
 export async function loadCurrentGuestTask(args: {
   setUser: SetState<AuthenticatedUser | null>;
-  setCurrentPage: SetState<GuestPage>;
 }) {
-  const { setUser, setCurrentPage } = args;
+  const { setUser } = args;
 
   try {
     setUser(await fetchCurrentGuest());
-    setCurrentPage('search');
   } catch {
     setUser(null);
   }

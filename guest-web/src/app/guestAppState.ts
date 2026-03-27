@@ -22,6 +22,16 @@ export type SignupFormState = {
   agreedTermIds: number[];
 };
 
+export type SignupFieldName = keyof SignupFormState;
+
+export type SignupFormErrors = Partial<Record<SignupFieldName, string>>;
+
+export type SignupLoginIdAvailability = {
+  checkedLoginId: string;
+  available: boolean;
+  message: string;
+};
+
 export type AccountProfileFormState = {
   name: string;
   email: string;

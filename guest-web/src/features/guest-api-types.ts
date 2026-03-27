@@ -15,14 +15,21 @@ export type SignupTerm = {
 };
 
 export type GuestSignupResponse = {
-  userId: number;
+  registered: true;
+};
+
+export type SignupLoginIdAvailability = {
   loginId: string;
-  name: string;
+  available: boolean;
+};
+
+export type SignupFieldAvailability = {
+  loginId: string | null;
+  loginIdAvailable: boolean | null;
   email: string | null;
+  emailAvailable: boolean | null;
   phone: string | null;
-  role: 'GUEST';
-  status: 'ACTIVE';
-  createdAt: string;
+  phoneAvailable: boolean | null;
 };
 
 export type HostRoleRequestStatus = 'PENDING' | 'APPROVED' | 'DENIED';

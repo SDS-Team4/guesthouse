@@ -1,4 +1,4 @@
-﻿type AccommodationAvailabilityCategory = 'AVAILABLE' | 'CONDITION_MISMATCH' | 'SOLD_OUT';
+type AccommodationAvailabilityCategory = 'AVAILABLE' | 'CONDITION_MISMATCH' | 'SOLD_OUT';
 
 type AccommodationDetail = {
   accommodationId: number;
@@ -170,8 +170,8 @@ function buildCalendarCells(
       isPlaceholder: true
     });
   }
-  let cursor = new Date(displayStart);
 
+  let cursor = new Date(displayStart);
   while (cursor <= displayEnd) {
     const isoDate = formatIsoDate(cursor);
     const info = dayMap.get(isoDate);
@@ -279,6 +279,17 @@ function buildMonthSections(cells: CalendarCell[]): CalendarMonthSection[] {
   return sections;
 }
 
+function getRoomTypeSupportingText(roomType: AccommodationDetail['roomTypes'][number]) {
+  switch (roomType.availabilityCategory) {
+    case 'AVAILABLE':
+      return '선택한 조건으로 바로 예약 가능한 객실 타입입니다.';
+    case 'CONDITION_MISMATCH':
+      return '운영 중인 객실 타입이지만 현재 검색 조건과 맞지 않습니다.';
+    case 'SOLD_OUT':
+      return '조건은 맞지만 현재 검색 일정에는 예약 가능한 재고가 없습니다.';
+  }
+}
+
 export function GuestAccommodationDetailSection({
   businessToday,
   searchCheckInDate,
@@ -296,9 +307,6 @@ export function GuestAccommodationDetailSection({
   onReserve
 }: GuestAccommodationDetailSectionProps) {
   const calendarOpen = Boolean(selectedRoomTypeId);
-  const selectedRoomType = accommodationDetail?.roomTypes.find(
-    (roomType) => roomType.roomTypeId === selectedRoomTypeId
-  ) ?? null;
   const calendarCells = buildCalendarCells(
     calendar?.days ?? [],
     businessToday,
@@ -323,33 +331,51 @@ export function GuestAccommodationDetailSection({
             <div className="detail-hero-copy">
               <span className="detail-hero-region">{accommodationDetail.region}</span>
               <h2>{accommodationDetail.accommodationName}</h2>
-              <p>{accommodationDetail.address}</p>
-              <p>{accommodationDetail.infoText ?? '추가 숙소 소개 문구는 아직 등록되지 않았습니다.'}</p>
+              <p className="detail-hero-address">{accommodationDetail.address}</p>
+              <p className="detail-hero-description">
+                {accommodationDetail.infoText ?? '편안한 숙박을 위한 기본 숙소 정보는 현재 등록되어 있습니다.'}
+              </p>
             </div>
 
-            <div className="detail-hero-meta">
+            <div className="detail-hero-side">
               <span className={`status-pill status-${accommodationDetail.availabilityCategory.toLowerCase()}`}>
                 {formatClassification(accommodationDetail.availabilityCategory)}
               </span>
-              <div>체크인 {accommodationDetail.checkInTime}</div>
-              <div>체크아웃 {accommodationDetail.checkOutTime}</div>
-              <div>현재 검색 인원 {searchGuestCount}명</div>
+
+              <div className="detail-hero-meta-grid">
+                <div className="detail-meta-card">
+                  <span>체크인</span>
+                  <strong>{accommodationDetail.checkInTime}</strong>
+                </div>
+                <div className="detail-meta-card">
+                  <span>체크아웃</span>
+                  <strong>{accommodationDetail.checkOutTime}</strong>
+                </div>
+                <div className="detail-meta-card detail-meta-card-wide">
+                  <span>현재 검색 조건</span>
+                  <strong>
+                    {searchCheckInDate} - {searchCheckOutDate} / {searchGuestCount}명
+                  </strong>
+                </div>
+              </div>
             </div>
           </section>
 
           <section className="roomtype-grid">
             {accommodationDetail.roomTypes.map((roomType) => {
-              const canReserve = roomType.matchesGuestCount && roomType.availabilityCategory === 'AVAILABLE';
+              const canReserve = roomType.availabilityCategory !== 'SOLD_OUT';
+              const selected = selectedRoomTypeId === roomType.roomTypeId;
 
               return (
                 <article
                   key={roomType.roomTypeId}
-                  className={`roomtype-card ${selectedRoomTypeId === roomType.roomTypeId ? 'roomtype-card-active' : ''}`}
+                  className={`roomtype-card ${selected ? 'roomtype-card-active' : ''}`}
                 >
                   <div className="roomtype-card-top">
-                    <div>
+                    <div className="roomtype-card-title-block">
                       <div className="roomtype-card-kicker">객실 타입</div>
                       <h3>{roomType.roomTypeName}</h3>
+                      <p className="roomtype-card-description">{getRoomTypeSupportingText(roomType)}</p>
                     </div>
                     <span className={`status-pill status-${roomType.availabilityCategory.toLowerCase()}`}>
                       {formatClassification(roomType.availabilityCategory)}
@@ -357,23 +383,27 @@ export function GuestAccommodationDetailSection({
                   </div>
 
                   <div className="roomtype-info-grid">
-                    <div>
+                    <div className="roomtype-info-card">
                       <span>정원</span>
                       <strong>
                         {roomType.baseCapacity}명 - {roomType.maxCapacity}명
                       </strong>
                     </div>
-                    <div>
+                    <div className="roomtype-info-card roomtype-info-card-price">
                       <span>지금 예약시 요금</span>
                       <strong>{formatCurrency(roomType.previewPrice)}</strong>
                     </div>
-                    <div>
+                    <div className="roomtype-info-card">
                       <span>예약 가능 객실 수</span>
                       <strong>{roomType.availableRoomCount}개</strong>
                     </div>
                     <div className="roomtype-action-box">
                       <div className="roomtype-action-buttons">
-                        <button type="button" className="secondary-button" onClick={() => onOpenCalendar(roomType.roomTypeId)}>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => onOpenCalendar(roomType.roomTypeId)}
+                        >
                           캘린더 보기
                         </button>
                         <button
@@ -405,8 +435,8 @@ export function GuestAccommodationDetailSection({
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="calendar-modal-header">
-                  <div>
-                    <p className="sidebar-kicker">room type calendar</p>
+                  <div className="calendar-modal-heading-block">
+                    <p className="calendar-modal-kicker">inventory calendar</p>
                     <h3>{selectedRoomTypeName ?? '객실 타입'} 캘린더</h3>
                     <p className="muted">{calendarTitle}</p>
                   </div>
@@ -462,7 +492,7 @@ export function GuestAccommodationDetailSection({
                                 {cell.isPlaceholder ? null : cell.hasInfo ? (
                                   <>
                                     <span>잔여 {cell.availableRoomCount}실</span>
-                                    <span>{cell.soldOut ? '매진' : '예약 가능'}</span>
+                                    <span>{cell.soldOut ? '매진' : '가능'}</span>
                                   </>
                                 ) : null}
                               </div>
@@ -481,4 +511,3 @@ export function GuestAccommodationDetailSection({
     </section>
   );
 }
-

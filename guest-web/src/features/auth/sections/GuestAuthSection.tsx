@@ -1,4 +1,5 @@
 import { FormEventHandler } from 'react';
+import { type SignupFormErrors, type SignupLoginIdAvailability } from '../../../app/guestAppState';
 
 type SignupTerm = {
   termId: number;
@@ -27,13 +28,18 @@ type GuestAuthSectionProps = {
   } | null;
   loginId: string;
   password: string;
+  loginError: string | null;
   signupForm: SignupFormState;
+  signupErrors: SignupFormErrors;
+  signupLoginIdAvailability: SignupLoginIdAvailability | null;
   signupTerms: SignupTerm[];
   loggingIn: boolean;
   signingUp: boolean;
+  checkingSignupLoginId: boolean;
   loadingSignupTerms: boolean;
   onLoginSubmit: FormEventHandler<HTMLFormElement>;
   onSignupSubmit: FormEventHandler<HTMLFormElement>;
+  onCheckSignupLoginId: () => void;
   onRefreshTerms: () => void;
   onLoginIdChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
@@ -48,16 +54,21 @@ type GuestAuthSectionProps = {
 
 export function GuestAuthSection({
   mode,
-  pendingReservationIntent,
+  pendingReservationIntent: _pendingReservationIntent,
   loginId,
   password,
+  loginError,
   signupForm,
+  signupErrors,
+  signupLoginIdAvailability,
   signupTerms,
   loggingIn,
   signingUp,
+  checkingSignupLoginId,
   loadingSignupTerms,
   onLoginSubmit,
   onSignupSubmit,
+  onCheckSignupLoginId,
   onRefreshTerms,
   onLoginIdChange,
   onPasswordChange,
@@ -78,16 +89,6 @@ export function GuestAuthSection({
               <h2>게스트 로그인</h2>
             </div>
 
-            {pendingReservationIntent ? (
-              <div className="auth-info-card">
-                <strong>저장된 예약 의도</strong>
-                <p>
-                  숙소 {pendingReservationIntent.accommodationId}, 객실 타입 {pendingReservationIntent.roomTypeId}
-                </p>
-                <small>로그인 후 같은 객실 타입에서 예약 요청을 이어갈 수 있습니다.</small>
-              </div>
-            ) : null}
-
             <form className="stack" onSubmit={onLoginSubmit}>
               <label>
                 아이디
@@ -97,6 +98,7 @@ export function GuestAuthSection({
                 비밀번호
                 <input type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} />
               </label>
+              {loginError ? <p className="form-error-banner">{loginError}</p> : null}
               <button type="submit" disabled={loggingIn}>
                 {loggingIn ? '로그인 중...' : '로그인'}
               </button>
@@ -134,7 +136,7 @@ export function GuestAuthSection({
                 onClick={onRefreshTerms}
                 disabled={loadingSignupTerms}
               >
-                {loadingSignupTerms ? '약관 새로고침 중...' : '약관 새로고침'}
+                {loadingSignupTerms ? '약관 불러오는 중...' : '약관 새로고침'}
               </button>
             </div>
 
@@ -142,15 +144,36 @@ export function GuestAuthSection({
               <div className="auth-form-grid">
                 <label>
                   아이디
-                  <input
-                    value={signupForm.loginId}
-                    onChange={(event) => onSignupFieldChange('loginId', event.target.value)}
-                  />
+                  <div className="signup-inline-action">
+                    <input
+                      value={signupForm.loginId}
+                      onChange={(event) => onSignupFieldChange('loginId', event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="secondary-button signup-inline-button"
+                      onClick={onCheckSignupLoginId}
+                      disabled={checkingSignupLoginId}
+                    >
+                      {checkingSignupLoginId ? '확인 중...' : '중복확인'}
+                    </button>
+                  </div>
+                  <small className="input-hint">4~50자 사이로 입력해주세요.</small>
+                  {signupErrors.loginId ? <small className="field-error">{signupErrors.loginId}</small> : null}
+                  {!signupErrors.loginId && signupLoginIdAvailability ? (
+                    <small className={signupLoginIdAvailability.available ? 'field-success' : 'field-error'}>
+                      {signupLoginIdAvailability.message}
+                    </small>
+                  ) : null}
                 </label>
+
                 <label>
                   이름
                   <input value={signupForm.name} onChange={(event) => onSignupFieldChange('name', event.target.value)} />
+                  <small className="input-hint">이름은 50자 이하로 입력할 수 있어요.</small>
+                  {signupErrors.name ? <small className="field-error">{signupErrors.name}</small> : null}
                 </label>
+
                 <label>
                   비밀번호
                   <input
@@ -158,7 +181,10 @@ export function GuestAuthSection({
                     value={signupForm.password}
                     onChange={(event) => onSignupFieldChange('password', event.target.value)}
                   />
+                  <small className="input-hint">8~100자 사이로 입력해주세요.</small>
+                  {signupErrors.password ? <small className="field-error">{signupErrors.password}</small> : null}
                 </label>
+
                 <label>
                   비밀번호 확인
                   <input
@@ -166,7 +192,12 @@ export function GuestAuthSection({
                     value={signupForm.passwordConfirm}
                     onChange={(event) => onSignupFieldChange('passwordConfirm', event.target.value)}
                   />
+                  <small className="input-hint">위에 입력한 비밀번호를 한 번 더 입력해주세요.</small>
+                  {signupErrors.passwordConfirm ? (
+                    <small className="field-error">{signupErrors.passwordConfirm}</small>
+                  ) : null}
                 </label>
+
                 <label>
                   이메일
                   <input
@@ -174,17 +205,22 @@ export function GuestAuthSection({
                     value={signupForm.email}
                     onChange={(event) => onSignupFieldChange('email', event.target.value)}
                   />
+                  <small className="input-hint">필수 입력이고, 올바른 이메일 형식으로 입력해주세요.</small>
+                  {signupErrors.email ? <small className="field-error">{signupErrors.email}</small> : null}
                 </label>
+
                 <label>
                   연락처
                   <input value={signupForm.phone} onChange={(event) => onSignupFieldChange('phone', event.target.value)} />
+                  <small className="input-hint">필수 입력이고, 이미 사용 중인 번호로는 가입할 수 없어요.</small>
+                  {signupErrors.phone ? <small className="field-error">{signupErrors.phone}</small> : null}
                 </label>
               </div>
 
               <div className="terms-list">
                 <strong>필수 약관</strong>
                 {signupTerms.length === 0 ? (
-                  <p className="empty-state">현재 게시된 필수 약관이 없습니다.</p>
+                  <p className="empty-state">현재 게시된 필수 약관을 불러오지 못했습니다.</p>
                 ) : (
                   signupTerms.map((term) => (
                     <label key={term.termId} className="checkbox-card">
@@ -205,6 +241,9 @@ export function GuestAuthSection({
                     </label>
                   ))
                 )}
+                {signupErrors.agreedTermIds ? (
+                  <small className="field-error">{signupErrors.agreedTermIds}</small>
+                ) : null}
               </div>
 
               <button type="submit" disabled={signingUp || loadingSignupTerms}>
