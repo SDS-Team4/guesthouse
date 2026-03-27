@@ -303,17 +303,92 @@ const pricingWeekdayOptions = [
   { label: 'Sun', bit: 64 }
 ];
 
-async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-    ...init
-  });
-  let envelope: ApiEnvelope<T> | null = null;
+const OPS_CSRF_COOKIE_NAME = 'OPS_API_CSRF';
+const CSRF_FAILURE_MESSAGE = 'CSRF token validation failed.';
+
+async function readEnvelope<T>(response: Response): Promise<ApiEnvelope<T> | null> {
   try {
-    envelope = (await response.json()) as ApiEnvelope<T>;
+    return (await response.json()) as ApiEnvelope<T>;
   } catch {
-    envelope = null;
+    return null;
+  }
+}
+
+function isCsrfFailure<T>(response: Response, envelope: ApiEnvelope<T> | null, init?: RequestInit) {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    return false;
+  }
+  return response.status === 403 && envelope?.error?.message === CSRF_FAILURE_MESSAGE;
+}
+
+async function refreshOpsCsrfCookie() {
+  await fetch('/api/v1/auth/me', {
+    method: 'GET',
+    credentials: 'include'
+  });
+}
+
+async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers ?? {});
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (typeof document !== 'undefined') {
+    const csrfCookie = document.cookie
+      .split(';')
+      .map((entry) => entry.trim())
+      .find((entry) => entry.startsWith(`${OPS_CSRF_COOKIE_NAME}=`));
+
+    if (csrfCookie) {
+      const separatorIndex = csrfCookie.indexOf('=');
+      const csrfToken = separatorIndex >= 0 ? decodeURIComponent(csrfCookie.slice(separatorIndex + 1)) : null;
+      const method = (init?.method ?? 'GET').toUpperCase();
+      if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        headers.set('X-CSRF-Token', csrfToken);
+      }
+    }
+  }
+
+  let response = await fetch(input, {
+    ...init,
+    credentials: 'include',
+    headers
+  });
+
+  let envelope = await readEnvelope<T>(response);
+  if (isCsrfFailure(response, envelope, init)) {
+    await refreshOpsCsrfCookie();
+    response = await fetch(input, {
+      ...init,
+      credentials: 'include',
+      headers: (() => {
+        const retryHeaders = new Headers(init?.headers ?? {});
+        if (!retryHeaders.has('Content-Type')) {
+          retryHeaders.set('Content-Type', 'application/json');
+        }
+
+        if (typeof document !== 'undefined') {
+          const csrfCookie = document.cookie
+            .split(';')
+            .map((entry) => entry.trim())
+            .find((entry) => entry.startsWith(`${OPS_CSRF_COOKIE_NAME}=`));
+
+          if (csrfCookie) {
+            const separatorIndex = csrfCookie.indexOf('=');
+            const csrfToken = separatorIndex >= 0 ? decodeURIComponent(csrfCookie.slice(separatorIndex + 1)) : null;
+            const method = (init?.method ?? 'GET').toUpperCase();
+            if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+              retryHeaders.set('X-CSRF-Token', csrfToken);
+            }
+          }
+        }
+
+        return retryHeaders;
+      })()
+    });
+    envelope = await readEnvelope<T>(response);
   }
   if (!response.ok || !envelope?.success) {
     const errorMessage = envelope?.error?.message ?? 'Request failed.';
